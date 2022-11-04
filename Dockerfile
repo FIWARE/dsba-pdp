@@ -12,8 +12,6 @@ ENV ISHARE_CLIENT_ID="EU.EORI.MyDummyClient"
 ENV ISHARE_AR_ID="EU.EORI.NL000000004"
 ENV ISHARE_AUTHORIZATION_REGISTRY_URL="https://ar.isharetest.net"
 
-RUN mkdir /iShare
-
 WORKDIR /go/src/app
 COPY ./ ./
 
@@ -21,4 +19,3 @@ RUN go get -d -v ./...
 RUN go install -v ./...
 
 CMD ["dsba-pdp"]
-

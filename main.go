@@ -53,6 +53,17 @@ func init() {
 		logger.Warnf("Json log env-var not readable. Use default logging. %v", err)
 		enableJsonLogging = false
 	}
+	logLevel := os.Getenv("LOG_LEVEL")
+
+	if logLevel == "DEBUG" {
+		logger.SetLevel(logrus.DebugLevel)
+	} else if logLevel == "INFO" {
+		logger.SetLevel(logrus.InfoLevel)
+	} else if logLevel == "WARN" {
+		logger.SetLevel(logrus.WarnLevel)
+	} else if logLevel == "ERROR" {
+		logger.SetLevel(logrus.ErrorLevel)
+	}
 
 	if enableJsonLogging {
 		logger.SetFormatter(&logrus.JSONFormatter{})
