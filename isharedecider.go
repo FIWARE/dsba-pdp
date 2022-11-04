@@ -41,7 +41,7 @@ func (iShareDecider) Decide(token string, originalAddress string, requestType st
 			return decision, httpErr
 		}
 
-		delegationEvidence, httpErr = getDelegationEvidence(issuer, subject, requiredPolicies)
+		delegationEvidence, httpErr = getDelegationEvidence(iShareClientId, issuer, requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
@@ -281,10 +281,7 @@ func isActive(delegationEvidence *DelegationEvidence) bool {
 		return true
 	}
 
-	logger.Infof("After: %v ", (*delegationEvidence).NotOnOrAfter)
-	logger.Infof("Now: %v After: %v ", timeNow, timeNotOnOrAfter)
-
-	logger.Infof("The retrieved delegation evidence is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", isNotBefore, isNotAfter, isNotNow)
+	logger.Debugf("The retrieved delegation evidence is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", isNotBefore, isNotAfter, isNotNow)
 	return false
 }
 
