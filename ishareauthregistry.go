@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
 	"io/ioutil"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
 
@@ -33,11 +32,6 @@ var certificateEndLine = "-----END CERTIFICATE-----\n"
 * Expiry of the accesstoken. Has to be 30s according to the iShare specification.
  */
 var tokenExpiryInS = 30
-
-/**
-* Global filesystem accessor
- */
-var diskFs fileSystem = &osFS{}
 
 /**
  * Global folder accessor
@@ -93,8 +87,8 @@ func init() {
 
 	certificatePath := os.Getenv("ISHARE_CERTIFICATE_PATH")
 	keyPath := os.Getenv("ISHARE_KEY_PATH")
-	iShareClientId := os.Getenv("ISHARE_CLIENT_ID")
-	iShareARId := os.Getenv("ISHARE_AR_ID")
+	iShareClientId = os.Getenv("ISHARE_CLIENT_ID")
+	iShareARId = os.Getenv("ISHARE_AR_ID")
 	iShareARUrl = os.Getenv("ISHARE_AUTHORIZATION_REGISTRY_URL")
 
 	delegationPathEnv := os.Getenv("ISHARE_DELEGATION_PATH")
@@ -154,13 +148,17 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 		return delegeationEvidence, httpErr
 	}
 
-	delegationRequestBody := DelegationRequest{PolicyIssuer: issuer, Target: DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []PolicySet{PolicySet{Policies: requiredPolicies}}}
+	delegationRequestBody := DelegationRequestWrapper{DelegationRequest{PolicyIssuer: issuer, Target: DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []PolicySet{{Policies: requiredPolicies}}}}
 	jsonBody, err := json.Marshal(delegationRequestBody)
 	if err != nil {
 		return delegeationEvidence, httpError{http.StatusInternalServerError, "Was not able to create a delegation request.", err}
 	}
 
 	policyRequest, err := http.NewRequest("POST", delegationAddress, bytes.NewReader(jsonBody))
+	if err != nil {
+		return delegeationEvidence, httpError{http.StatusInternalServerError, "Was not able to create delegation request.", err}
+
+	}
 
 	policyRequest.Header.Set("Authorization", "Bearer "+accessToken)
 	policyRequest.Header.Set("Content-Type", "application/json")
@@ -171,19 +169,25 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	}
 
 	if delegationResponse.StatusCode != 200 {
-		logger.Warn()
-		return delegeationEvidence, httpError{http.StatusBadGateway, fmt.Sprint("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), nil}
+		return delegeationEvidence, httpError{http.StatusBadGateway, fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), nil}
 	}
 	if delegationResponse.Body == nil {
 		return delegeationEvidence, httpError{http.StatusBadGateway, "Did not receive a response body from the ar.", nil}
 	}
 
 	// decode and return
-	err = json.NewDecoder(delegationResponse.Body).Decode(&delegeationEvidence)
+	var delegationResponseObject DelegationResponse
+	err = json.NewDecoder(delegationResponse.Body).Decode(&delegationResponseObject)
 	if err != nil {
-		return delegeationEvidence, httpError{http.StatusBadGateway, fmt.Sprint("Received an invalid body from the ar: %s", delegationResponse.Body), err}
+		return delegeationEvidence, httpError{http.StatusBadGateway, fmt.Sprintf("Received an invalid body from the ar: %s", delegationResponse.Body), err}
 	}
-	return delegeationEvidence, httpErr
+
+	parsedToken, httpErr := parseIShareToken(delegationResponseObject.DelegationToken)
+	if httpErr != (httpError{}) {
+		return delegeationEvidence, httpErr
+	}
+
+	return &parsedToken.DelegationEvidence, httpErr
 }
 
 func getTokenFromAR() (accessToken string, httpErr httpError) {
@@ -225,7 +229,7 @@ func getTokenFromAR() (accessToken string, httpErr httpError) {
 	}
 
 	if decodedResponse == nil || decodedResponse["access_token"] == nil {
-		return accessToken, httpError{http.StatusBadGateway, fmt.Sprint("Did not receive an access token from the idp. Resp: %v", decodedResponse), err}
+		return accessToken, httpError{http.StatusBadGateway, fmt.Sprintf("Did not receive an access token from the idp. Resp: %v", decodedResponse), err}
 	}
 
 	return decodedResponse["access_token"].(string), httpErr
@@ -303,7 +307,7 @@ func getCertificateArray(certificatePath string) (encodedCert []string, err erro
 
 	certArray = deleteEmpty(certArray)
 
-	return
+	return certArray, err
 }
 
 /**
@@ -332,28 +336,6 @@ type fileAccessor struct {
 	write fileWriter
 	read  fileReader
 }
-
-type fileSystem interface {
-	Open(name string) (file, error)
-	Stat(name string) (os.FileInfo, error)
-	MkdirAll(path string, perm fs.FileMode) error
-	RemoveAll(path string) error
-}
-
-type file interface {
-	io.Closer
-	io.Reader
-	io.ReaderAt
-	io.Seeker
-	Stat() (os.FileInfo, error)
-}
-
-type osFS struct{}
-
-func (osFS) Open(name string) (file, error)               { return os.Open(name) }
-func (osFS) Stat(name string) (os.FileInfo, error)        { return os.Stat(name) }
-func (osFS) MkdirAll(path string, perm fs.FileMode) error { return os.MkdirAll(path, perm) }
-func (osFS) RemoveAll(path string) error                  { return os.RemoveAll(path) }
 
 func getFolderContent(path string) (folders []fs.FileInfo, err error) {
 	return ioutil.ReadDir(path)

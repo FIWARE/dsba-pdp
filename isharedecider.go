@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,23 +13,28 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var ngsiPathIndicator string = "ngsi-ld/v1/entities"
+var ngsiPathIndicator string = "/ngsi-ld/v1/entities"
 
 func (iShareDecider) Decide(token string, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision Decision, httpErr httpError) {
 
 	// verification should already have happend, pdp only decides based on the presented information
-	parsedToken, _, err := jwt.NewParser().ParseUnverified(token, &IShareToken{})
+	//parsedToken, httpErr := parseIShareToken(token)
+	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &IShareToken{})
 	if err != nil {
 		return decision, httpError{http.StatusUnauthorized, "No proper jwt was provided", err}
 	}
 
-	claims := parsedToken.Claims.(*IShareToken)
-	issuer := claims.Issuer
-	subject := claims.Subject
+	if httpErr != (httpError{}) {
+		return decision, httpError{http.StatusUnauthorized, httpErr.message, &httpErr}
+	}
+	parsedToken := unverifiedToken.Claims.(*IShareToken)
 
-	delegationEvidence := &claims.DelegationEvidence
+	issuer := parsedToken.Issuer
+	subject := parsedToken.Subject
 
-	// issuer is requiered, so we take it as an indicator, since we cannot compare in-depth(due to the embedded slice)
+	delegationEvidence := &parsedToken.DelegationEvidence
+
+	// issuer is required, so we take it as an indicator, since we cannot compare in-depth(due to the embedded slice)
 	if delegationEvidence.PolicyIssuer == "" {
 		requiredPolicies, httpErr := buildRequiredPolicies(originalAddress, requestType, requestBody)
 		if httpErr != (httpError{}) {
@@ -43,7 +51,7 @@ func (iShareDecider) Decide(token string, originalAddress string, requestType st
 		return Decision{false, fmt.Sprintf("DelegationEvidence for issuer %s and subject %s is not inside a valid time range.", issuer, subject)}, httpErr
 	}
 
-	return decision, httpErr
+	return Decision{false, "Everything ok, now we need to verfiy the policies."}, httpErr
 }
 
 func buildRequiredPolicies(originalAddress string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -57,7 +65,7 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The original address is not an ngsi request %s", originalAddress), err}
 	}
 
-	plainPath := strings.ReplaceAll(ngsiPathIndicator, requestedUrl.Path, "")
+	plainPath := strings.ReplaceAll(requestedUrl.Path, ngsiPathIndicator, "")
 
 	// base entities request
 	if plainPath == "" {
@@ -80,7 +88,7 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 	if strings.Contains(plainPath, "/attrs") {
 		return buildRequiredPoliciesForSingleAttr(entityId, pathParts[len(pathParts)-1], requestType)
 	}
-	return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The request %s:%s is not supported by the iShareDecider.", requestType, originalAddress), nil}
+	return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The request %s : %s is not supported by the iShareDecider.", requestType, originalAddress), nil}
 }
 
 func buildRequiredPoliciesForEntity(entityId string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -95,6 +103,7 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 		resource = Resource{
 			Type:        entityType,
 			Identifiers: []string{entityId},
+			Attributes:  []string{"*"},
 		}
 	} else
 	// overwrites the full entity, e.g. no attribute restriction can be allowed
@@ -102,6 +111,7 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 		resource = Resource{
 			Type:        entityType,
 			Identifiers: []string{entityId},
+			Attributes:  []string{"*"},
 		}
 	} else
 	// on PATCH, only the attributes in the request body are touched, e.g. the can be included.
@@ -114,7 +124,8 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 	} else {
 		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities/{id}.", requestType), nil}
 	}
-	return []Policy{Policy{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}}, Rules: []Rule{Rule{Effect: "Permit"}}}}, httpErr
+	// empty env is again a workaround for ishare test ar...
+	return []Policy{{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}, Environment: Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
@@ -133,7 +144,7 @@ func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, r
 		Identifiers: []string{entityId},
 		Attributes:  []string{attributeName},
 	}
-	return []Policy{Policy{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}}, Rules: []Rule{Rule{Effect: "Permit"}}}}, httpErr
+	return []Policy{{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}, Environment: Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -147,7 +158,7 @@ func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestB
 		Identifiers: []string{entityId},
 		Attributes:  getAttributesFromBody(requestBody)}
 
-	return []Policy{Policy{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}}, Rules: []Rule{Rule{Effect: "Permit"}}}}, httpErr
+	return []Policy{{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}, Environment: Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -155,18 +166,34 @@ func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, r
 	var resource Resource
 
 	if requestType == "GET" {
+		entityType := requestUrl.Query().Get("type")
+		identifiers := deleteEmpty(strings.Split(requestUrl.Query().Get("id"), ","))
+		attributes := deleteEmpty(strings.Split(requestUrl.Query().Get("attrs"), ","))
+		if entityType == "" && len(identifiers) == 0 && len(attributes) == 0 {
+			return policies, httpError{http.StatusBadRequest, fmt.Sprint("GET-Requests to /entities requires at least one of type, id or attrs.", requestType), nil}
+		}
+		// workaround for the broken ishare ar-api
+		if len(attributes) == 0 {
+			attributes = append(attributes, "*")
+		}
+		if len(identifiers) == 0 {
+			identifiers = append(identifiers, "*")
+		}
+
 		resource = Resource{
-			Type:        requestUrl.Query().Get("type"),
-			Identifiers: strings.Split(requestUrl.Query().Get("id"), ","),
-			Attributes:  strings.Split(requestUrl.Query().Get("attrs"), ",")}
+			Type:        entityType,
+			Identifiers: identifiers,
+			Attributes:  attributes}
 	} else if requestType == "POST" {
 		resource = Resource{
-			Type:       (*requestBody)["type"].(string),
-			Attributes: getAttributesFromBody(requestBody)}
+			Type:        (*requestBody)["type"].(string),
+			Identifiers: []string{"*"},
+			Attributes:  getAttributesFromBody(requestBody)}
 	} else {
 		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities.", requestType), nil}
 	}
-	return []Policy{Policy{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}}, Rules: []Rule{Rule{Effect: "Permit"}}}}, httpErr
+
+	return []Policy{{Target: PolicyTarget{Resource: resource, Actions: []string{requestType}, Environment: Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
@@ -189,16 +216,75 @@ func getTypeFromId(entityId string) (entityType string, httpErr httpError) {
 	return idParts[2], httpErr
 }
 
+func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr httpError) {
+	token, err := jwt.ParseWithClaims(tokenString, &IShareToken{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("invalid_token_method")
+		}
+
+		x5cInterfaces := (*token).Header["x5c"].([]interface{})
+		// the first in the chain is the client cert
+		decodedClientCert, err := base64.StdEncoding.DecodeString(x5cInterfaces[0].(string))
+		if err != nil {
+			return nil, err
+		}
+		clientCert, err := x509.ParseCertificate(decodedClientCert)
+		if err != nil {
+			return nil, err
+		}
+
+		rootPool := x509.NewCertPool()
+		for i, cert := range x5cInterfaces {
+			if i == 0 {
+				// skip client cert
+				continue
+			}
+			decodedClientCert, err := base64.StdEncoding.DecodeString(cert.(string))
+			if err != nil {
+				return nil, err
+			}
+			parsedCert, err := x509.ParseCertificate(decodedClientCert)
+			if err != nil {
+				return nil, err
+			}
+			rootPool.AddCert(parsedCert)
+		}
+
+		opts := x509.VerifyOptions{Roots: rootPool}
+		if _, err := clientCert.Verify(opts); err != nil {
+			return nil, err
+		}
+		return clientCert.PublicKey.(*rsa.PublicKey), nil
+	})
+
+	if err != nil {
+		return parsedToken, httpError{http.StatusBadGateway, fmt.Sprintf("Was not able to parse token. Error: %v", err), err}
+	}
+	if !token.Valid {
+		return parsedToken, httpError{http.StatusBadGateway, fmt.Sprintf("Did not receive a valid token. Error: %v", err), err}
+	}
+	return token.Claims.(*IShareToken), httpErr
+
+}
+
 func isActive(delegationEvidence *DelegationEvidence) bool {
 
-	timeNotBefore := time.Unix(delegationEvidence.NotBefore, 0)
-	timeNotOnOrAfter := time.Unix(delegationEvidence.NotOnOrAfter, 0)
+	timeNotBefore := time.Unix((*delegationEvidence).NotBefore, 0)
+	timeNotOnOrAfter := time.Unix((*delegationEvidence).NotOnOrAfter, 0)
 	timeNow := time.Now()
 
-	if !timeNow.Before(timeNotBefore) && !timeNow.After(timeNotOnOrAfter) && !timeNow.Equal(timeNotOnOrAfter) {
+	isNotBefore := timeNow.Before(timeNotBefore)
+	isNotAfter := timeNow.After(timeNotOnOrAfter)
+	isNotNow := timeNow.Equal(timeNotOnOrAfter)
+
+	if !isNotBefore && !isNotAfter && !isNotNow {
 		return true
 	}
-	logger.Info("The retrieved delegation evidence is not active anymore.")
+
+	logger.Infof("After: %v ", (*delegationEvidence).NotOnOrAfter)
+	logger.Infof("Now: %v After: %v ", timeNow, timeNotOnOrAfter)
+
+	logger.Infof("The retrieved delegation evidence is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", isNotBefore, isNotAfter, isNotNow)
 	return false
 }
 

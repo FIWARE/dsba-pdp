@@ -43,60 +43,32 @@ func authorize(c *gin.Context) {
 	}
 
 	var jsonData map[string]interface{}
-	if err := json.Unmarshal(bodyData, jsonData); err != nil {
+	if err := json.Unmarshal(bodyData, &jsonData); err != nil {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
 
 	decision, httpErr := decider.Decide(token, originalAddress, requestType, &jsonData)
 
 	if httpErr != (httpError{}) {
-		logger.Warn("Did not receive a valid decision. Error: %v", httpErr.rootError)
+		logger.Warnf("Did not receive a valid decision. Error: %v", httpErr.rootError)
 		c.AbortWithError(httpErr.status, &httpErr)
 		return
 	}
-	if decision.decision {
+	if decision.Decision {
 		logger.Debug("Successfully authorized request.")
 		c.Status(http.StatusOK)
 		return
 	}
-	logger.Debug("Denied the request because of: %s", decision.reason)
-	decisionJson, _ := json.Marshal(decision)
+	logger.Debugf("Denied the request because of: %s", decision.Reason)
 
-	c.AbortWithStatusJSON(http.StatusForbidden, decisionJson)
+	c.AbortWithStatusJSON(http.StatusForbidden, decision)
 }
 
 /**
 * Removes the bearer prefix and returns the token
  */
 func getTokenFromBearer(bearer string) (token string) {
-	strings.ReplaceAll("Bearer ", bearer, token)
-	strings.ReplaceAll("bearer ", bearer, token)
+	token = strings.ReplaceAll(bearer, "Bearer ", "")
+	token = strings.ReplaceAll(token, "bearer ", "")
 	return
-}
-
-// interface of the configured decider
-
-type Decider interface {
-	Decide(token string, originalAddress string, requestType string, requestBody *map[string]interface{}) (descision Decision, err httpError)
-}
-
-// error interface
-
-type Decision struct {
-	decision bool   `json:"decision`
-	reason   string `json:"reason"`
-}
-
-type httpError struct {
-	status    int
-	message   string
-	rootError error
-}
-
-func (err *httpError) Error() string {
-	return err.message
-}
-
-func (err *httpError) GetRoot() error {
-	return err.rootError
 }

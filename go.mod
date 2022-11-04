@@ -4,7 +4,10 @@ go 1.17
 
 require golang.org/x/oauth2 v0.1.0
 
-require github.com/google/uuid v1.3.0 // indirect
+require (
+	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
+)
 
 require (
 	github.com/gin-contrib/sse v0.1.0 // indirect
