@@ -48,5 +48,6 @@ type DSBAVerifiableCredential struct {
 }
 
 type Issuer struct {
-	Id string `json:"issuer"`
+	Id       string `json:"issuer"`
+	IShareId string `json:"iShareId"`
 }
