@@ -17,11 +17,6 @@ import (
 var logger = logrus.New()
 
 /**
-* Url of the authorization registry to use
- */
-var authorizationRegistyUrl string
-
-/**
 * Port to run the pdp at. Default is 8080.
  */
 var serverPort int = 8080
