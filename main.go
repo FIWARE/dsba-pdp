@@ -67,6 +67,8 @@ func init() {
 
 	if enableJsonLogging {
 		logger.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logger.SetFormatter(&logrus.TextFormatter{})
 	}
 
 	serverPort, err = strconv.Atoi(serverPortEnvVar)

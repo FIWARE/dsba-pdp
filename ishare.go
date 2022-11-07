@@ -2,6 +2,13 @@ package main
 
 import "github.com/golang-jwt/jwt/v4"
 
+/**
+* Constant indicating the "permit" effect as defined by iShare
+ */
+const iSharePermitEffect string = "Permit"
+
+// data structures defined by the [iShare-Delegation endpoint specification]: https://dev.ishareworks.org/delegation/endpoint.html
+
 type PolicySet struct {
 	MaxDelegationDepth int             `json:"maxDelegationDepth,omitempty"`
 	Target             PolicySetTarget `json:"target,omitempty"`
@@ -88,4 +95,48 @@ type DelegationEvidence struct {
 type IShareToken struct {
 	DelegationEvidence DelegationEvidence `json:"delegationEvidence,omitempty"`
 	jwt.RegisteredClaims
+}
+
+type IShareCredentialsSubject struct {
+	Id                string `json:"id"`
+	Roles             []Role `json:"roles"`
+	Name              string `json:"name,omitempty"`
+	GivenName         string `json:"given_name,omitempty"`
+	FamilyName        string `json:"family_name,omitempty"`
+	PreferredUsername string `json:"preferred_username,omitempty"`
+	Email             string `json:"email,omitempty"`
+}
+
+type Role struct {
+	// id of the policy issuer, for example EU.EORI.HAPPYPETS
+	Issuer string `json:"issuer"`
+	// name of the role, for example READER
+	Name string `json:"name"`
+	// information about the authorization registry, to retrieve the policies for the role
+	AuthorizationRegistry AuthorizationRegistry `json:"authorizationRegistry"`
+}
+
+type AuthorizationRegistry struct {
+	Id   string `json:"id"`
+	Host string `json:"host"`
+	// will use default path it not included - {host}/connect/token
+	TokenPath string `json:"tokenPath,omitempty"`
+	// will use default path it not included - {host}/delegation
+	DelegationPath string `json:"delegationPath,omitempty"`
+}
+
+func (ar AuthorizationRegistry) getTokenAddress() string {
+	if ar.TokenPath == "" {
+		return ar.Host + "/connect/token"
+	} else {
+		return ar.Host + ar.TokenPath
+	}
+}
+
+func (ar AuthorizationRegistry) getDelegationAddress() string {
+	if ar.DelegationPath == "" {
+		return ar.Host + "/delegation"
+	} else {
+		return ar.Host + ar.DelegationPath
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 var decider Decider
@@ -28,10 +29,19 @@ func authorize(c *gin.Context) {
 	authorizationHeader := c.GetHeader("Authorization")
 	if authorizationHeader == "" {
 		logger.Warn("No authorization header was provided, will skip decision.")
-		c.AbortWithStatus(401)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	token := getTokenFromBearer(authorizationHeader)
+
+	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &DSBAToken{})
+	if err != nil {
+		logger.Warn("Was not able to parse the token.")
+		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
+		return
+	}
+	parsedToken := unverifiedToken.Claims.(*DSBAToken)
+	logger.Debugf("Received token %s", prettyPrintObject(parsedToken))
 
 	originalAddress := c.GetHeader("X-Original-URI")
 	requestType := c.GetHeader("X-Original-Action")
@@ -46,12 +56,11 @@ func authorize(c *gin.Context) {
 	if err := json.Unmarshal(bodyData, &jsonData); err != nil {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
-
-	decision, httpErr := decider.Decide(token, originalAddress, requestType, &jsonData)
+	decision, httpErr := decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
 
 	if httpErr != (httpError{}) {
 		logger.Warnf("Did not receive a valid decision. Error: %v", httpErr.rootError)
-		c.AbortWithError(httpErr.status, &httpErr)
+		c.AbortWithStatusJSON(httpErr.status, httpErr)
 		return
 	}
 	if decision.Decision {
@@ -71,4 +80,16 @@ func getTokenFromBearer(bearer string) (token string) {
 	token = strings.ReplaceAll(bearer, "Bearer ", "")
 	token = strings.ReplaceAll(token, "bearer ", "")
 	return
+}
+
+/**
+* Helper method to print objects with json-serialization information in a more human readable way
+ */
+func prettyPrintObject(objectInterface interface{}) string {
+	jsonBytes, err := json.Marshal(objectInterface)
+	if err != nil {
+		logger.Debugf("Was not able to pretty print the object: %v", objectInterface)
+		return ""
+	}
+	return string(jsonBytes)
 }

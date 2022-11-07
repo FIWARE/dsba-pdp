@@ -13,45 +13,82 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var ngsiPathIndicator string = "/ngsi-ld/v1/entities"
+/**
+* Indicates that we have a supported ngsi-ld path.
+ */
+const ngsiPathIndicator string = "/ngsi-ld/v1/entities"
 
-func (iShareDecider) Decide(token string, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision Decision, httpErr httpError) {
+func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision Decision, httpErr httpError) {
 
-	// verification should already have happend, pdp only decides based on the presented information
-	//parsedToken, httpErr := parseIShareToken(token)
-	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &IShareToken{})
-	if err != nil {
-		return decision, httpError{http.StatusUnauthorized, "No proper jwt was provided", err}
+	// we need to use this as request target to check request towards ourself
+	requestTarget := iShareClientId
+	verifiableCredential := token.VerifiableCredential
+	logger.Debugf("Received VC: %s", prettyPrintObject(verifiableCredential))
+
+	credentialsSubject := verifiableCredential.CredentialSubject
+	if credentialsSubject.Id == "" {
+		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-credentialSubject.", prettyPrintObject(credentialsSubject))}, httpErr
 	}
 
+	if len(credentialsSubject.Roles) == 0 {
+		return Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", prettyPrintObject(credentialsSubject))}, httpErr
+	}
+
+	requiredPolicies, httpErr := buildRequiredPolicies(originalAddress, requestType, requestBody)
 	if httpErr != (httpError{}) {
-		return decision, httpError{http.StatusUnauthorized, httpErr.message, &httpErr}
+		return decision, httpErr
 	}
-	parsedToken := unverifiedToken.Claims.(*IShareToken)
 
-	issuer := parsedToken.Issuer
-	subject := parsedToken.Subject
-
-	delegationEvidence := &parsedToken.DelegationEvidence
-
-	// issuer is required, so we take it as an indicator, since we cannot compare in-depth(due to the embedded slice)
-	if delegationEvidence.PolicyIssuer == "" {
-		requiredPolicies, httpErr := buildRequiredPolicies(originalAddress, requestType, requestBody)
+	for _, role := range credentialsSubject.Roles {
+		decision, httpErr := decideForRole(requestTarget, role, &requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
-
-		delegationEvidence, httpErr = getDelegationEvidence(iShareClientId, issuer, requiredPolicies)
-		if httpErr != (httpError{}) {
+		if decision.Decision {
 			return decision, httpErr
 		}
 	}
+	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, verifiableCredential)}, httpErr
+}
 
+func decideForRole(requestTarget string, role Role, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+
+	// get evidence from role-issuer to request-target
+	// in iShare, that means the role-issuer becomes the policyTarget and the requestTarget has to be the policyIssuer
+	delegationEvidenceForRequestTarget, httpErr := getDelegationEvidence(requestTarget, role.Issuer, requiredPolicies, &PDPAuthorizationRegistry)
+	if httpErr != (httpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the pdp ar: %v", prettyPrintObject(PDPAuthorizationRegistry))
+		return decision, httpErr
+	}
+
+	decision = checkDelegationEvidence(delegationEvidenceForRequestTarget)
+
+	if !decision.Decision {
+		logger.Debugf("Delegation from role-issuer %s to the request target %s is not permitted by delegation evidence %s.", role.Issuer, requestTarget, prettyPrintObject(delegationEvidenceForRequestTarget))
+		return decision, httpErr
+	}
+
+	// the second allowance needs to be from the role-issuer to the role, e.g checking the data encoded in the Role-Object
+	delegationEvidenceForRole, httpErr := getDelegationEvidence(role.Issuer, role.Name, requiredPolicies, &role.AuthorizationRegistry)
+	if httpErr != (httpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(role.AuthorizationRegistry))
+		return decision, httpErr
+	}
+	decision = checkDelegationEvidence(delegationEvidenceForRole)
+	logger.Debugf("Decision for the role is: %s", prettyPrintObject(decision))
+	return decision, httpErr
+}
+
+func checkDelegationEvidence(delegationEvidence *DelegationEvidence) (decision Decision) {
 	if !isActive(delegationEvidence) {
-		return Decision{false, fmt.Sprintf("DelegationEvidence for issuer %s and subject %s is not inside a valid time range.", issuer, subject)}, httpErr
+		return Decision{false, fmt.Sprintf("DelegationEvidence %s is not inside a valid time range.", prettyPrintObject(*delegationEvidence))}
 	}
 
-	return Decision{false, "Everything ok, now we need to verfiy the policies."}, httpErr
+	if !doesPermitRequest(&delegationEvidence.PolicySets) {
+		return Decision{false, fmt.Sprintf("DelegationEvidence %s does not permit the request.", prettyPrintObject(*delegationEvidence))}
+	}
+
+	return Decision{true, "Request allowed."}
 }
 
 func buildRequiredPolicies(originalAddress string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -281,8 +318,55 @@ func isActive(delegationEvidence *DelegationEvidence) bool {
 		return true
 	}
 
-	logger.Debugf("The retrieved delegation evidence is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", isNotBefore, isNotAfter, isNotNow)
+	logger.Debugf("The retrieved delegation evidence %v is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", prettyPrintObject(*delegationEvidence), isNotBefore, isNotAfter, isNotNow)
 	return false
+}
+
+func doesPermitRequest(policySets *[]PolicySet) bool {
+	if policySets == nil || len(*policySets) == 0 {
+		logger.Debug("No permit policy found, since the policy sets array is empty: %v", prettyPrintObject(*policySets))
+		return false
+	}
+	for _, policySet := range *policySets {
+		if !doesSetPermitRequest(&policySet) {
+			logger.Debugf("PolicySet does not permit the request: %v.", prettyPrintObject(*policySets))
+			return false
+		}
+	}
+	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*policySets))
+	return true
+}
+
+func doesSetPermitRequest(policySet *PolicySet) bool {
+	if policySet.Policies == nil || len(policySet.Policies) == 0 {
+		logger.Debug("No permit policy found, since the policies array is empty for set: %v", prettyPrintObject(*policySet))
+		return false
+	}
+	for _, policy := range policySet.Policies {
+		if !doRulesPermitRequest(&policy.Rules) {
+			logger.Debugf("Policy does not permit the request: %v.", prettyPrintObject(policy))
+			return false
+		}
+	}
+	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*policySet))
+	return true
+}
+
+func doRulesPermitRequest(rules *[]Rule) bool {
+	if rules == nil || len(*rules) == 0 {
+		logger.Debug("No permit rule found, since the rule array is empty.")
+		return false
+
+	}
+	for _, rule := range *rules {
+		if rule.Effect != iSharePermitEffect {
+			logger.Debugf("Request denied, found a non-permit rule: %v", prettyPrintObject(rule))
+			return false
+		}
+	}
+	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*rules))
+	return true
+
 }
 
 type iShareDecider struct{}
