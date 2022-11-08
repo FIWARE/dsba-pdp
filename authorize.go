@@ -46,6 +46,8 @@ func authorize(c *gin.Context) {
 	originalAddress := c.GetHeader("X-Original-URI")
 	requestType := c.GetHeader("X-Original-Action")
 
+	logger.Debugf("Received request %s - %s.", requestType, originalAddress)
+
 	bodyData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		logger.Warn("Was not able to read the body, will set it to empty.", err)
@@ -59,7 +61,7 @@ func authorize(c *gin.Context) {
 	decision, httpErr := decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
 
 	if httpErr != (httpError{}) {
-		logger.Warnf("Did not receive a valid decision. Error: %v", httpErr.rootError)
+		logger.Warnf("Did not receive a valid decision. Error: %v - root: %v", httpErr, httpErr.rootError)
 		c.AbortWithStatusJSON(httpErr.status, httpErr)
 		return
 	}
