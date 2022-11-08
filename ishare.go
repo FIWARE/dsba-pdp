@@ -10,14 +10,14 @@ const iSharePermitEffect string = "Permit"
 // data structures defined by the [iShare-Delegation endpoint specification]: https://dev.ishareworks.org/delegation/endpoint.html
 
 type PolicySet struct {
-	MaxDelegationDepth int             `json:"maxDelegationDepth,omitempty"`
-	Target             PolicySetTarget `json:"target,omitempty"`
-	Policies           []Policy        `json:"policies,omitempty"`
+	MaxDelegationDepth int              `json:"maxDelegationDepth,omitempty"`
+	Target             *PolicySetTarget `json:"target,omitempty"`
+	Policies           []Policy         `json:"policies,omitempty"`
 }
 
 type Policy struct {
-	Target PolicyTarget `json:"target,omitempty"`
-	Rules  []Rule       `json:"rules,omitempty"`
+	Target *PolicyTarget `json:"target,omitempty"`
+	Rules  []Rule        `json:"rules,omitempty"`
 }
 
 type Environment struct {
@@ -31,23 +31,23 @@ type Resource struct {
 }
 
 type PolicyTarget struct {
-	Resource    Resource    `json:"resource,omitempty"`
-	Actions     []string    `json:"actions,omitempty"`
-	Environment Environment `json:"environment,omitempty"`
+	Resource    *Resource    `json:"resource,omitempty"`
+	Actions     []string     `json:"actions,omitempty"`
+	Environment *Environment `json:"environment,omitempty"`
 }
 
 type Rule struct {
-	Effect string     `json:"effect,omitempty"`
-	Target RuleTarget `json:"target,omitempty"`
+	Effect string      `json:"effect,omitempty"`
+	Target *RuleTarget `json:"target,omitempty"`
 }
 
 type RuleTarget struct {
-	Resource Resource `json:"resource,omitempty"`
-	Actions  []string `json:"actions,omitempty"`
+	Resource *Resource `json:"resource,omitempty"`
+	Actions  []string  `json:"actions,omitempty"`
 }
 
 type PolicySetTarget struct {
-	Environment PolicySetEnvironment `json:"environment,omitempty"`
+	Environment *PolicySetEnvironment `json:"environment,omitempty"`
 }
 
 type PolicySetEnvironment struct {
@@ -55,15 +55,15 @@ type PolicySetEnvironment struct {
 }
 
 type DelegationRequestWrapper struct {
-	DelegationRequest DelegationRequest `json:"delegationRequest,omitempty"`
+	DelegationRequest *DelegationRequest `json:"delegationRequest,omitempty"`
 }
 
 type DelegationRequest struct {
-	PolicyIssuer   string           `json:"policyIssuer,omitempty"`
-	Target         DelegationTarget `json:"target,omitempty"`
-	PolicySets     []PolicySet      `json:"policySets,omitempty"`
-	DelegationPath []string         `json:"delegation_path,omitempty"`
-	PreviousSteps  []string         `json:"previous_steps,omitempty"`
+	PolicyIssuer   string            `json:"policyIssuer,omitempty"`
+	Target         *DelegationTarget `json:"target,omitempty"`
+	PolicySets     []*PolicySet      `json:"policySets,omitempty"`
+	DelegationPath []string          `json:"delegation_path,omitempty"`
+	PreviousSteps  []string          `json:"previous_steps,omitempty"`
 }
 
 type DelegationTarget struct {
