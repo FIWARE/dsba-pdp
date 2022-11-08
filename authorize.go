@@ -59,7 +59,7 @@ func authorize(c *gin.Context) {
 	decision, httpErr := decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
 
 	if httpErr != (httpError{}) {
-		logger.Warnf("Did not receive a valid decision. Error: %v", httpErr.rootError)
+		logger.Warnf("Did not receive a valid decision. Error: %v - root: %v", httpErr, httpErr.rootError)
 		c.AbortWithStatusJSON(httpErr.status, httpErr)
 		return
 	}
