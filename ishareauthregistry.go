@@ -138,7 +138,7 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 
 	logger.Debugf("Token: %s", accessToken)
 
-	delegationRequestBody := DelegationRequestWrapper{DelegationRequest{PolicyIssuer: issuer, Target: DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []PolicySet{{Policies: *requiredPolicies}}}}
+	delegationRequestBody := DelegationRequestWrapper{&DelegationRequest{PolicyIssuer: issuer, Target: &DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []*PolicySet{{Policies: *requiredPolicies}}}}
 	jsonBody, err := json.Marshal(delegationRequestBody)
 	if err != nil {
 		return delegeationEvidence, httpError{http.StatusInternalServerError, "Was not able to create a delegation request.", err}
