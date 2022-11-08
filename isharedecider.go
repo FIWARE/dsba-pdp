@@ -186,7 +186,7 @@ func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, r
 		Identifiers: []string{entityId},
 		Attributes:  []string{attributeName},
 	}
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -200,7 +200,7 @@ func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestB
 		Identifiers: []string{entityId},
 		Attributes:  getAttributesFromBody(requestBody)}
 
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
@@ -235,7 +235,7 @@ func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, r
 		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities.", requestType), nil}
 	}
 
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
