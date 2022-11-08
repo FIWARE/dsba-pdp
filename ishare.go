@@ -21,7 +21,7 @@ type Policy struct {
 }
 
 type Environment struct {
-	ServiceProviders []string `json:"serviceProviders"`
+	ServiceProviders []string `json:"serviceProviders,omitempty"`
 }
 
 type Resource struct {
