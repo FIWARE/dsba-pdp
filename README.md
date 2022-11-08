@@ -11,7 +11,7 @@ The files need to be mounted to the container, default paths are /iShare/cert.pe
 Assuming the certificate and key for ```EU.EORI.NLPACKETDEL``` reside in $(pwd)/examples, a PDP for PacketDelivery can be started via 
 
 ```
-    docker run -v $(pwd)/examples:/iShare -e ISHARE_CLIENT_ID="EU.EORI.NLPACKETDEL" -p 8080:8080 dsba-pdp
+    docker run -v $(pwd)/examples:/iShare -e ISHARE_CLIENT_ID="EU.EORI.NLPACKETDEL" -p 8080:8080 quay.io/wi_stefan/dsba-pdp
 ```
 
 The PDP is now available at ```localhost:8080``` and can be asked for a decision at ```localhost:8080/authz```
