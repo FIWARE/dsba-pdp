@@ -24,7 +24,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	requestTarget := iShareClientId
 	verifiableCredential := token.VerifiableCredential
 	logger.Debugf("Received VC: %s", prettyPrintObject(verifiableCredential))
-	roleIssuer := verifiableCredential.Issuer.IShareId
+	roleIssuer := verifiableCredential.Issuer.Id
 	if roleIssuer == "" {
 		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", prettyPrintObject(verifiableCredential))}, httpErr
 	}
