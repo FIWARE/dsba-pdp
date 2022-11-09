@@ -48,5 +48,5 @@ type DSBAVerifiableCredential struct {
 }
 
 type Issuer struct {
-	Id string `json:"id"
+	Id string `json:"id"`
 }
