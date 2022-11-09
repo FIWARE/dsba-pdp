@@ -145,6 +145,7 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	}
 
 	logger.Debugf("Delegation request: %s", jsonBody)
+	logger.Debugf("Delegation address: %s", authorizationRegistry.getDelegationAddress())
 
 	policyRequest, err := http.NewRequest("POST", authorizationRegistry.getDelegationAddress(), bytes.NewReader(jsonBody))
 	if err != nil {
