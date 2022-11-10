@@ -261,7 +261,8 @@ components:
         validFor:
           $ref: '#/components/schemas/TimeRange'
         credentialsType:
-          $ref: '#/components/schemas/CredentialsType'
+          type: string
+          example: "CustomerCredential"
         claims:
           type: array
           items:
