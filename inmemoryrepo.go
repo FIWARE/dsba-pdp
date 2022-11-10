@@ -4,6 +4,11 @@ import (
 	"net/http"
 )
 
+/**
+* Quick in-memory implementation of the issuer repository. Should only be used for dev and testing, does not have any persistence.
+ */
+type InMemoryRepo struct{}
+
 var issuerMap *map[string]TrustedIssuer = &map[string]TrustedIssuer{}
 
 func (InMemoryRepo) CreateIssuer(trustedIssuer TrustedIssuer) (httpErr httpError) {
@@ -53,5 +58,3 @@ func (InMemoryRepo) GetIssuers(limit int, offset int) (trustedIssuers []TrustedI
 	}
 	return trustedIssuers, httpErr
 }
-
-type InMemoryRepo struct{}

@@ -20,6 +20,7 @@ func init() {
 		logger.Fatal("DB is not yet supported.")
 		return
 	}
+	logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
 	issuerRepo = InMemoryRepo{}
 }
 
