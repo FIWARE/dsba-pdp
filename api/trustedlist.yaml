@@ -79,6 +79,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Id'
       description: Return a single issuer
+      operationId: getIssuerById
       summary: get an issuer
       responses:
         '200':
@@ -94,6 +95,7 @@ paths:
         - issuer
       parameters:
         - $ref: '#/components/parameters/Id'
+      operationId: deleteIssuerById
       description: Delete a single issuer
       responses:
         '204':
@@ -106,6 +108,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Id'
       description: Update a single issuer
+      operationId: replaceIssuer
       requestBody:
         required: true
         content:
@@ -189,7 +192,7 @@ components:
     VerifiableCredential:
       type: object
       properties:
-        context:
+        '@context':
           type: array
           items:
             type: string
