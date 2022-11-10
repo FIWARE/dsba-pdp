@@ -3,48 +3,47 @@ info:
   title: Trusted Issuers List
   description: Maintain a list of trusted issuers of verifiable credentials
   version: 4.0.0
-  
 tags:
   - name: verfication
   - name: issuer
 paths:
-  '/verify':
+  /verify:
     post:
       tags:
-      - verification
+        - verification
       operationId: verifyIssuer
-      summary: 'Verifies that the credential is created by a trusted issuer and the issuer is allowed to issue such credential'
+      summary: Verifies that the credential is created by a trusted issuer and the issuer is allowed to issue such credential
       description: verifiy the vc
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VerifiableCredential'  
+              $ref: '#/components/schemas/VerifiableCredential'
       responses:
         '204':
           description: Successfully verified the request.
-        '400': 
+        '400':
           $ref: '#/components/schemas/ProblemDetails'
-        '403': 
-          $ref: '#/components/schemas/ProblemDetails'  
-  '/issuer':
+        '403':
+          $ref: '#/components/schemas/ProblemDetails'
+  /issuer:
     post:
       tags:
         - issuer
       operationId: createTrustedIssuer
-      summary: 'Create a trusted issuer and its capabilities'
+      summary: Create a trusted issuer and its capabilities
       description: create trusted issuer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrustedIssuer'  
+              $ref: '#/components/schemas/TrustedIssuer'
       responses:
         '201':
           description: Successfully created the issuer.
-        '400': 
+        '400':
           $ref: '#/components/schemas/ProblemDetails'
         '409':
           $ref: '#/components/schemas/ProblemDetails'
@@ -52,7 +51,7 @@ paths:
       tags:
         - issuer
       operationId: getIssuers
-      description: 'Return the list of trusted issuers'
+      description: Return the list of trusted issuers
       summary: return the issuers
       parameters:
         - name: limit
@@ -73,14 +72,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrustedIssuerList'
-      
-  '/issuer/{id}':
+  /issuer/{id}:
     get:
       tags:
         - issuer
       parameters:
         - $ref: '#/components/parameters/Id'
-      description: "Return a single issuer"
+      description: Return a single issuer
       summary: get an issuer
       responses:
         '200':
@@ -96,7 +94,7 @@ paths:
         - issuer
       parameters:
         - $ref: '#/components/parameters/Id'
-      description: "Delete a single issuer"
+      description: Delete a single issuer
       responses:
         '204':
           description: Successfully deleted
@@ -107,21 +105,20 @@ paths:
         - issuer
       parameters:
         - $ref: '#/components/parameters/Id'
-      description: "Update a single issuer"
+      description: Update a single issuer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrustedIssuer'  
+              $ref: '#/components/schemas/TrustedIssuer'
       responses:
         '204':
           description: Successfully updated the issuer.
-        '400': 
+        '400':
           $ref: '#/components/schemas/ProblemDetails'
         '409':
           $ref: '#/components/schemas/ProblemDetails'
-  
 components:
   parameters:
     Id:
@@ -130,36 +127,36 @@ components:
       required: true
       schema:
         type: string
-        example: "did:elsi:happypets"
+        example: did:elsi:happypets
   schemas:
     CredentialsType:
       type: array
       items:
         type: string
-      example: 
-        - "CustomerCredential"
-        - "VerifiableCredential"
+      example:
+        - CustomerCredential
+        - VerifiableCredential
     IssuerId:
       type: object
       properties:
         id:
           type: string
-          example: "did:elsi:happypets"
+          example: did:elsi:happypets
     AuthorizationRegistry:
       type: object
       properties:
         id:
           type: string
-          example: "EU.EORI.HAPPYPETS"
-        host: 
+          example: EU.EORI.HAPPYPETS
+        host:
           type: string
-          example: "http://keyrock:8080"
+          example: http://keyrock:8080
         tokenPath:
           type: string
-          example: "/oauth2/token"
-        delegationPath: 
+          example: /oauth2/token
+        delegationPath:
           type: string
-          example: "/ar/delegation"
+          example: /ar/delegation
       required:
         - id
         - host
@@ -168,25 +165,25 @@ components:
       properties:
         id:
           type: string
-          example: "did:peer:99ab5bca41bb45b78d242a46f0157b7d"
+          example: did:peer:99ab5bca41bb45b78d242a46f0157b7d
         roles:
           type: array
           items:
             type: string
           example:
-            - "GOLD_CUSTOMER"
+            - GOLD_CUSTOMER
     IShareCustomerCredentialSubject:
       type: object
       properties:
         id:
           type: string
-          example: "did:peer:99ab5bca41bb45b78d242a46f0157b7d"
+          example: did:peer:99ab5bca41bb45b78d242a46f0157b7d
         roles:
           type: array
           items:
             type: string
           example:
-            - "GOLD_CUSTOMER"
+            - GOLD_CUSTOMER
         authorizationRegistry:
           $ref: '#/components/schemas/AuthorizationRegistry'
     VerifiableCredential:
@@ -197,13 +194,13 @@ components:
           items:
             type: string
             format: uri
-          example: 
-            - "https://www.w3.org/2018/credentials/v1"
-            - "https://happypets.fiware.io/2022/credentials/employee/v1"
+          example:
+            - https://www.w3.org/2018/credentials/v1
+            - https://happypets.fiware.io/2022/credentials/employee/v1
         id:
           type: string
-          example: "https://happypets.fiware.io/credential/25159389-8dd17b796ac0"
-        type: 
+          example: https://happypets.fiware.io/credential/25159389-8dd17b796ac0
+        type:
           $ref: '#/components/schemas/CredentialsType'
         issuer:
           $ref: '#/components/schemas/IssuerId'
@@ -215,33 +212,33 @@ components:
       description: Error description, as specified in RFC7807
       type: object
       properties:
-        type: 
+        type:
           type: string
           format: uri
-          example: "my:resolvable:error:type"
+          example: my:resolvable:error:type
         title:
           type: string
-          example: "Unknown issuer."
+          example: Unknown issuer.
         status:
           type: number
           example: 401
         detail:
           type: string
-          example: "No such issuer was registered."
+          example: No such issuer was registered.
         instance:
           type: string
-          format: uri   
+          format: uri
     TimeRange:
       type: object
       properties:
-        from: 
+        from:
           type: string
           format: date-time
-          example: "2017-07-21T17:32:28Z"
-        to: 
+          example: '2017-07-21T17:32:28Z'
+        to:
           type: string
           format: date-time
-          example: "2023-07-21T17:32:28Z"
+          example: '2023-07-21T17:32:28Z'
     Capabilities:
       type: object
       properties:
@@ -251,12 +248,9 @@ components:
           $ref: '#/components/schemas/CredentialsType'
         claims:
           type: array
-          items: 
-            type: string
-          example: 
-            - "GOLD_CUSTOMER"
-            - "STANDARD_CUSTOMER"
-        policy: 
+          items:
+            $ref: '#/components/schemas/Claim'
+        policy:
           description: Placeholder object for potential use in future implementations
           type: object
     TrustedIssuer:
@@ -264,7 +258,7 @@ components:
       properties:
         id:
           type: string
-          example: "did:elsi:happypets"
+          example: did:elsi:happypets
         capabilities:
           type: array
           items:
@@ -273,5 +267,16 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/TrustedIssuer'
-          
-      
+    Claim:
+      type: object
+      properties:
+        name:
+          type: string
+          example: roles
+        allowedValues:
+          type: array
+          items:
+            type: object
+          example:
+            - "GOLD_CUSTOMER"
+            - "STANDARD_CUSTOMER"

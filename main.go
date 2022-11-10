@@ -33,7 +33,14 @@ func main() {
 
 	router := gin.Default()
 
+	//pdp authz
 	router.POST("/authz", authorize)
+
+	//issuer list
+	router.POST("/issuer", createTrustedIssuer)
+	router.PUT("/issuer", replaceIssuer)
+	router.GET("/issuer/:id", getIssuerById)
+	router.DELETE("/issuer/:id", deleteIssuerById)
 
 	router.Run(fmt.Sprintf("0.0.0.0:%v", serverPort))
 	logger.Infof("Started router at %v", serverPort)
