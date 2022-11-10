@@ -1,4 +1,4 @@
-package pdp
+package main
 
 import (
 	"crypto/rsa"
@@ -29,7 +29,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", prettyPrintObject(verifiableCredential))}, httpErr
 	}
 
-	credentialsSubject := verifiableCredential.CredentialSubject
+	credentialsSubject := verifiableCredential.CredentialSubject.(*IShareCredentialsSubject)
 	if credentialsSubject.Id == "" {
 		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-credentialSubject.", prettyPrintObject(credentialsSubject))}, httpErr
 	}
@@ -58,22 +58,6 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 
 func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
 
-	// get evidence from role-issuer to request-target
-	// in iShare, that means the role-issuer becomes the policyTarget and the requestTarget has to be the policyIssuer
-	delegationEvidenceForRequestTarget, httpErr := getDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, &PDPAuthorizationRegistry)
-	if httpErr != (httpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the pdp ar: %v", prettyPrintObject(PDPAuthorizationRegistry))
-		return decision, httpErr
-	}
-
-	decision = checkDelegationEvidence(delegationEvidenceForRequestTarget)
-
-	if !decision.Decision {
-		logger.Debugf("Delegation from role-issuer %s to the request target %s is not permitted by delegation evidence %s.", roleIssuer, requestTarget, prettyPrintObject(delegationEvidenceForRequestTarget))
-		return decision, httpErr
-	}
-
-	// the second allowance needs to be from the role-issuer to the role, e.g checking the data encoded in the Role-Object
 	delegationEvidenceForRole, httpErr := getDelegationEvidence(roleIssuer, role.Name, requiredPolicies, authorizationRegistry)
 	if httpErr != (httpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(authorizationRegistry))

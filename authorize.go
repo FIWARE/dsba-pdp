@@ -58,10 +58,24 @@ func authorize(c *gin.Context) {
 	if err := json.Unmarshal(bodyData, &jsonData); err != nil {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
-	decision, httpErr := decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
+	// verify trust in the issuer
+	decision, httpErr := Verify(parsedToken.VerifiableCredential)
+	if httpErr != (httpError{}) {
+		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.rootError)
+		c.AbortWithStatusJSON(httpErr.status, httpErr)
+		return
+	}
+	if !decision.Decision {
+		logger.Debugf("Trusted issuer verficiation failed, because of: %s", decision.Reason)
+		c.AbortWithStatusJSON(http.StatusForbidden, decision)
+		return
+	}
+
+	// evaluate and decide policies
+	decision, httpErr = decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
 
 	if httpErr != (httpError{}) {
-		logger.Warnf("Did not receive a valid decision. Error: %v - root: %v", httpErr, httpErr.rootError)
+		logger.Warnf("Did not receive a valid decision from the pdp. Error: %v - root: %v", httpErr, httpErr.rootError)
 		c.AbortWithStatusJSON(httpErr.status, httpErr)
 		return
 	}

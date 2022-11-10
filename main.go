@@ -27,6 +27,22 @@ var serverPort int = 8080
 var globalHttpClient httpClient = &http.Client{}
 
 /**
+* Repository used to store trusted issuers
+ */
+var issuerRepo IssuerRepository
+
+func init() {
+	dbEnabled, dbErr := strconv.ParseBool(os.Getenv("DB_ENABLED"))
+
+	if dbErr != nil && dbEnabled {
+		logger.Fatal("DB is not yet supported.")
+		return
+	}
+	logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
+	issuerRepo = InMemoryRepo{}
+}
+
+/**
 * Startup method to run the gin-server.
  */
 func main() {
@@ -35,6 +51,9 @@ func main() {
 
 	//pdp authz
 	router.POST("/authz", authorize)
+
+	// verification
+	router.POST("/verifiy", verifyIssuer)
 
 	//issuer list
 	router.POST("/issuer", createTrustedIssuer)

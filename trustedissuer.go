@@ -18,8 +18,8 @@ type TimeRange struct {
 }
 
 type Claim struct {
-	Name          string        `json:"name"`
-	AllowedValues []interface{} `json:"AllowedValues"`
+	Name          string   `json:"name"`
+	AllowedValues []string `json:"AllowedValues"`
 }
 
 type ProblemDetails struct {

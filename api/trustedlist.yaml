@@ -26,7 +26,11 @@ paths:
         '400':
           $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/schemas/ProblemDetails'
+          description: Issuer verfication was not successfull
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
   /issuer:
     post:
       tags:
@@ -132,6 +136,15 @@ components:
         type: string
         example: did:elsi:happypets
   schemas:
+    Decision:
+      type: object
+      properties:
+        decision:
+          type: boolean
+          example: false
+        reason:
+          type: string
+          example: "Issuer is not allowed to assign the roles."
     CredentialsType:
       type: array
       items:
@@ -279,7 +292,7 @@ components:
         allowedValues:
           type: array
           items:
-            type: object
+            type: string
           example:
             - "GOLD_CUSTOMER"
             - "STANDARD_CUSTOMER"

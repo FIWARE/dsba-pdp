@@ -5,24 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
-
-var issuerRepo IssuerRepository
-
-func init() {
-	dbEnabled, dbErr := strconv.ParseBool(os.Getenv("DB_ENABLED"))
-
-	if dbErr != nil && dbEnabled {
-		logger.Fatal("DB is not yet supported.")
-		return
-	}
-	logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
-	issuerRepo = InMemoryRepo{}
-}
 
 func createTrustedIssuer(c *gin.Context) {
 
