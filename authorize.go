@@ -1,4 +1,4 @@
-package pdp
+package main
 
 import (
 	"encoding/json"
