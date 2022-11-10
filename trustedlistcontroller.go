@@ -51,6 +51,13 @@ func replaceIssuer(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, ProblemDetails{Type: "BadRequest", Status: http.StatusBadRequest, Title: "Unable to unmarshal body.", Detail: err.Error()})
 		return
 	}
+
+	issuerId := c.Param("id")
+	if trustedIssuer.Id != issuerId {
+		c.AbortWithStatusJSON(http.StatusBadRequest, ProblemDetails{Type: "BadRequest", Status: http.StatusBadRequest, Title: "Id cannot be updated."})
+		return
+	}
+
 	httpErr := issuerRepo.PutIssuer(trustedIssuer)
 	if httpErr != (httpError{}) {
 		logger.Debugf("Was not able to replace issuer %s.", prettyPrintObject(trustedIssuer))

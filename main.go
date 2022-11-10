@@ -57,7 +57,8 @@ func main() {
 
 	//issuer list
 	router.POST("/issuer", createTrustedIssuer)
-	router.PUT("/issuer", replaceIssuer)
+	router.GET("/issuer", getIssuers)
+	router.PUT("/issuer/:id", replaceIssuer)
 	router.GET("/issuer/:id", getIssuerById)
 	router.DELETE("/issuer/:id", deleteIssuerById)
 
