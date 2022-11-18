@@ -53,7 +53,7 @@ func main() {
 	router.POST("/authz", authorize)
 
 	// verification
-	router.POST("/verifiy", verifyIssuer)
+	router.POST("/verify", verifyIssuer)
 
 	//issuer list
 	router.POST("/issuer", createTrustedIssuer)

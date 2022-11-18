@@ -32,10 +32,10 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	credentialsSubject := verifiableCredential.CredentialSubject
 
 	var authorizationRegistry *AuthorizationRegistry
-	if credentialsSubject.AuthorizationRegistry == nil {
+	if credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry == nil {
 		authorizationRegistry = &PDPAuthorizationRegistry
 	} else {
-		authorizationRegistry = credentialsSubject.AuthorizationRegistry
+		authorizationRegistry = credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry
 	}
 
 	if len(credentialsSubject.Roles) == 0 {
