@@ -305,11 +305,11 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 			rootPool.AddCert(parsedCert)
 		}
 
-		opts := x509.VerifyOptions{Roots: rootPool}
-		if _, err := clientCert.Verify(opts); err != nil {
-			logger.Warnf("The cert could not be verified.")
-			return nil, err
-		}
+		//opts := x509.VerifyOptions{Roots: rootPool}
+		//if _, err := clientCert.Verify(opts); err != nil {
+		//	logger.Warnf("The cert could not be verified.")
+		//	return nil, err
+		//}
 
 		logger.Debugf("Parsed certificate is: %v", clientCert)
 		return clientCert.PublicKey.(*rsa.PublicKey), nil
