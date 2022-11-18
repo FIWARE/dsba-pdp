@@ -8,6 +8,12 @@ type CustomerCredentialVerifier struct{}
 
 func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *CredentialSubject) (descision Decision, err httpError) {
 
+	// check that no addtional information is included
+
+	if credentialSubject.IShareCredentialsSubject != nil {
+		return Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", prettyPrintObject(*credentialSubject))}, err
+	}
+
 	roleClaim := Claim{}
 	for _, claim := range *claims {
 		if claim.Name == "roles" {

@@ -55,7 +55,7 @@ type Role struct {
 type CredentialSubject struct {
 	Id    string `json:"id"`
 	Roles []Role `json:"roles"`
-	IShareCredentialsSubject
+	*IShareCredentialsSubject
 }
 
 type Issuer struct {
