@@ -11,9 +11,12 @@ func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *Cre
 	// check that no addtional information is included
 
 	if credentialSubject.IShareCredentialsSubject != nil {
-		return Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", prettyPrintObject(*credentialSubject))}, err
+		return Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", prettyPrintObject(*credentialSubject))}, er
 	}
+	return CheckRoles(claims, credentialSubject)
+}
 
+func CheckRoles(claims *[]Claim, credentialSubject *CredentialSubject) (descision Decision, err httpError) {
 	roleClaim := Claim{}
 	for _, claim := range *claims {
 		if claim.Name == "roles" {
@@ -35,5 +38,4 @@ func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *Cre
 		}
 	}
 	return Decision{true, "Role claims allowed."}, err
-
 }

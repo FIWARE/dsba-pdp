@@ -6,8 +6,8 @@ type IShareCustomerCredentialVerifier struct{}
 
 func (IShareCustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *CredentialSubject, issuerId string) (decision Decision, err httpError) {
 
-	// check role verification, no difference to the CustomerCredentialVerifier
-	decision, httpErr := CustomerCredentialVerifier{}.Verify(claims, credentialSubject)
+	// check roles, no difference to the CustomerCredentialVerifier
+	decision, httpErr := CheckRoles(claims, credentialSubject)
 
 	if httpErr != (httpError{}) || !decision.Decision {
 		logger.Debugf("Denied by the CustomerCredentialVerifier")
