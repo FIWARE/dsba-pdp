@@ -38,20 +38,10 @@ In this case, the user "UserA" of HappyPets has fullfilled the SIOP flow to Pack
 		"CustomerCredential"
 	],
 	"issuer": {
-		"id": "did:elsi:happypets",
-		"iShareId": "EU.EORI.NLHAPPYPETS"
+		"id": "did:elsi:happypets"
 	},
 	"credentialSubject": {
 		"id": "did:peer:99ab5bca41bb45b78d242a46f0157b7d",
-		"name": "UserA",
-		"given_name": "User",
-		"family_name": "A",
-		"preferred_username": "user-a",
-		"email": "user@a.org",
-		"authorizationRegistry": {
-			"id": "EU.EORI.NL000000004",
-			"host": "https://ar.isharetest.net"
-		},
 		"roles": [{
 			"name": "STANDARD_CUSTOMER"
 		}]
@@ -61,8 +51,57 @@ In this case, the user "UserA" of HappyPets has fullfilled the SIOP flow to Pack
 
 With that information, the PDP will:
 
-1. Build the policies required for the submitted request - e.g. GET https://packetdelivery.org/ngsi-ld/v1/entities?type=DELIVERYORDER
-2. Iterates through the roles in the VC:
+1. Check that the issuer is allowed to assing the role ```STANDARD_CUSTOMER```, see the [trusted-list API](./api/trustedlist.yaml)
+2. Build the policies required for the submitted request - e.g. GET https://packetdelivery.org/ngsi-ld/v1/entities?type=DELIVERYORDER
+3. Iterates through the roles in the VC:
     1. Get and check the required policy for delegating the role from its own authorization-registry
     2. Get and check the policy connected with the assigned role from the authorization-registry included in the role
 3. Return the decision
+
+## Structure
+
+The PDP evaluates the VerifiableCredential in 2 steps:
+
+1. Trusted Issuer
+
+The VerifiableCredential will be checked against the "trusted-issuers" list(see the [API](./api/trustedlist.yaml)). The list contains information about the types of credentials that are supported for certain issuers and the claims they can include into the credentials. 
+In case of the [Quickstart-Example](#quick-start), the following configuration for the issuer will be required:
+```json
+{
+  // id of the issuer	
+  "id": "did:elsi:happypets",
+  // the capabilities of the issuer, there can be multiple for example allowing different capabilities at different points of time
+  "capabilities": [
+    {
+	  // validity of the capability
+      "validFor": {
+        "from": "2017-07-21T17:32:28Z",
+        "to": "2033-07-21T17:32:28Z"
+      },
+	  // type of credentials allowed by this capability
+      "credentialsType": "CustomerCredential",
+	  // claims allowed for the given credential
+      "claims": [
+        {
+          "name": "roles",
+          "allowedValues": [
+            "GOLD_CUSTOMER",
+            "STANDARD_CUSTOMER"
+          ]
+        }
+      ],
+	  // specific policies to evalutate - not implemented yet
+      "policy": {}
+    }
+  ]
+}
+```
+The ```trusted-issuer``` consists of its ID and a list of capabilities. The capabilities describe the types of credentials an Issuer is allowed to issue and the claims it can use. The trusted-issuer check will "trust" the issuer if one of the capabilities can be successfully validated.
+
+The current implementation supports 2 types of VerifiableCredentials - ```CustomerCredential``` and ```IShareCustomerCredential```
+For ```CustomerCredential```, it will be checked that the assigned roles are allowed for the given issuer and no additional information is provided.
+For ```IShareCustomerCredential```, the same role check will happen. In addition, it will be checked that only not-forbidden AR's are specified. 
+
+2. Decider
+
+Depending on the type of credential, the decider will now evaluate the request in the context of the VC. Currently, only the ```iShare-decider``` is implemented. Depending on the credentials type, the ```iShare-decider``` will use [iShare-compliant](https://dev.ishareworks.org) authoriation-registries to evaluate the request against the registered policies. 

@@ -45,8 +45,9 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 		return decision, httpErr
 	}
 
-	for _, role := range credentialsSubject.Roles {
-		decision, httpErr := decideForRole(requestTarget, roleIssuer, role, &authorizationRegistry, &requiredPolicies)
+	// in case of an IShareCustomerCredential, we need to check if the role-issuer has enough rights to access the request-target, before checking the delegation, e.g. the roles
+	if credentialsSubject.IShareCredentialsSubject != nil {
+		decision, httpErr = checkIShareTarget(requestTarget, roleIssuer, &requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
@@ -54,7 +55,28 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 			return decision, httpErr
 		}
 	}
-	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, verifiableCredential)}, httpErr
+
+	for _, role := range credentialsSubject.Roles {
+		decision, httpErr = decideForRole(requestTarget, roleIssuer, role, &authorizationRegistry, &requiredPolicies)
+		if httpErr != (httpError{}) {
+			return decision, httpErr
+		}
+		if decision.Decision {
+			return decision, httpErr
+		}
+	}
+	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, prettyPrintObject(verifiableCredential))}, httpErr
+}
+
+func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+	delegationEvidenceForRole, httpErr := getDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, &PDPAuthorizationRegistry)
+	if httpErr != (httpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(&PDPAuthorizationRegistry))
+		return decision, httpErr
+	}
+	decision = checkDelegationEvidence(delegationEvidenceForRole)
+	logger.Debugf("Decision for the role is: %s", prettyPrintObject(decision))
+	return decision, httpErr
 }
 
 func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
