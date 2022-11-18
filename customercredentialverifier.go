@@ -11,7 +11,7 @@ func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *Cre
 	// check that no addtional information is included
 
 	if credentialSubject.IShareCredentialsSubject != nil {
-		return Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", prettyPrintObject(*credentialSubject))}, er
+		return Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", prettyPrintObject(*credentialSubject))}, err
 	}
 	return CheckRoles(claims, credentialSubject)
 }
