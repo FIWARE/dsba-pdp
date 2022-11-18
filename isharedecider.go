@@ -30,7 +30,11 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	}
 
 	credentialsSubject := verifiableCredential.CredentialSubject
+
 	authorizationRegistry := credentialsSubject.AuthorizationRegistry
+	if authorizationRegistry.Id == "" {
+		authorizationRegistry = PDPAuthorizationRegistry
+	}
 
 	if len(credentialsSubject.Roles) == 0 {
 		return Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", prettyPrintObject(credentialsSubject))}, httpErr
