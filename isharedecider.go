@@ -277,10 +277,12 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 		// the first in the chain is the client cert
 		decodedClientCert, err := base64.StdEncoding.DecodeString(x5cInterfaces[0].(string))
 		if err != nil {
+			logger.Warnf("The client cert could not be decoded. Token: %s", tokenString)
 			return nil, err
 		}
 		clientCert, err := x509.ParseCertificate(decodedClientCert)
 		if err != nil {
+			logger.Warnf("The client cert could not be parsed. Token: %s", tokenString)
 			return nil, err
 		}
 
@@ -290,12 +292,14 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 				// skip client cert
 				continue
 			}
-			decodedClientCert, err := base64.StdEncoding.DecodeString(cert.(string))
+			decodedCert, err := base64.StdEncoding.DecodeString(cert.(string))
 			if err != nil {
+				logger.Warnf("The cert could not be decoded. Cert: %s", cert.(string))
 				return nil, err
 			}
-			parsedCert, err := x509.ParseCertificate(decodedClientCert)
+			parsedCert, err := x509.ParseCertificate(decodedCert)
 			if err != nil {
+				logger.Warnf("The cert could not be parsed. Cert: %s", cert.(string))
 				return nil, err
 			}
 			rootPool.AddCert(parsedCert)
@@ -303,8 +307,11 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 
 		opts := x509.VerifyOptions{Roots: rootPool}
 		if _, err := clientCert.Verify(opts); err != nil {
+			logger.Warnf("The cert could not be verified.")
 			return nil, err
 		}
+
+		logger.Debugf("Parsed certificate is: %v", clientCert)
 		return clientCert.PublicKey.(*rsa.PublicKey), nil
 	})
 
