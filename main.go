@@ -27,13 +27,40 @@ var serverPort int = 8080
 var globalHttpClient httpClient = &http.Client{}
 
 /**
+* Repository used to store trusted issuers
+ */
+var issuerRepo IssuerRepository
+
+func init() {
+	dbEnabled, dbErr := strconv.ParseBool(os.Getenv("DB_ENABLED"))
+
+	if dbErr != nil && dbEnabled {
+		logger.Fatal("DB is not yet supported.")
+		return
+	}
+	logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
+	issuerRepo = InMemoryRepo{}
+}
+
+/**
 * Startup method to run the gin-server.
  */
 func main() {
 
 	router := gin.Default()
 
+	//pdp authz
 	router.POST("/authz", authorize)
+
+	// verification
+	router.POST("/verify", verifyIssuer)
+
+	//issuer list
+	router.POST("/issuer", createTrustedIssuer)
+	router.GET("/issuer", getIssuers)
+	router.PUT("/issuer/:id", replaceIssuer)
+	router.GET("/issuer/:id", getIssuerById)
+	router.DELETE("/issuer/:id", deleteIssuerById)
 
 	router.Run(fmt.Sprintf("0.0.0.0:%v", serverPort))
 	logger.Infof("Started router at %v", serverPort)
@@ -66,9 +93,11 @@ func init() {
 		logger.SetFormatter(&logrus.TextFormatter{})
 	}
 
-	serverPort, err = strconv.Atoi(serverPortEnvVar)
+	serverPortEnv, err := strconv.Atoi(serverPortEnvVar)
 	if err != nil {
-		logger.Fatalf("No valid server port was provided, run on default %s.", serverPort)
+		logger.Warnf("No valid server port was provided, run on default %s.", serverPort)
+	} else {
+		serverPort = serverPortEnv
 	}
 }
 
