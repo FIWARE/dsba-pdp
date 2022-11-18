@@ -32,8 +32,8 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	credentialsSubject := verifiableCredential.CredentialSubject
 
 	authorizationRegistry := credentialsSubject.AuthorizationRegistry
-	if authorizationRegistry.Id == "" {
-		authorizationRegistry = PDPAuthorizationRegistry
+	if authorizationRegistry == nil {
+		authorizationRegistry = &PDPAuthorizationRegistry
 	}
 
 	if len(credentialsSubject.Roles) == 0 {
@@ -57,7 +57,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	}
 
 	for _, role := range credentialsSubject.Roles {
-		decision, httpErr = decideForRole(requestTarget, roleIssuer, role, &authorizationRegistry, &requiredPolicies)
+		decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
