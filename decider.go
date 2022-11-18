@@ -37,14 +37,25 @@ type DSBAToken struct {
 }
 
 type DSBAVerifiableCredential struct {
-	Context           []string    `json:"@context"`
-	Id                string      `json:"id"`
-	Type              []string    `json:"type"`
-	Issuer            Issuer      `json:"issuer"`
-	IssuanceDate      string      `json:"issuanceDate"`
-	ValidFrom         string      `json:"validFrom"`
-	ExpirationDate    string      `json:"expirationDate"`
-	CredentialSubject interface{} `json:"credentialSubject"`
+	Context           []string          `json:"@context"`
+	Id                string            `json:"id"`
+	Type              []string          `json:"type"`
+	Issuer            Issuer            `json:"issuer"`
+	IssuanceDate      string            `json:"issuanceDate"`
+	ValidFrom         string            `json:"validFrom"`
+	ExpirationDate    string            `json:"expirationDate"`
+	CredentialSubject CredentialSubject `json:"credentialSubject"`
+}
+
+type Role struct {
+	// name of the role, for example READER
+	Name string `json:"name"`
+}
+
+type CredentialSubject struct {
+	Id    string `json:"id"`
+	Roles []Role `json:"roles"`
+	IShareCredentialsSubject
 }
 
 type Issuer struct {

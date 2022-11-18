@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-type CustomerCredentialSubject struct {
-	Id    string   `json:"id"`
-	Roles []string `json:"roles"`
-}
-
 func Verify(vc DSBAVerifiableCredential) (decision Decision, httpErr httpError) {
 	issuerId := vc.Issuer.Id
 	if issuerId == "" {
@@ -21,21 +16,31 @@ func Verify(vc DSBAVerifiableCredential) (decision Decision, httpErr httpError) 
 		return Decision{false, httpErr.message}, httpErr
 	}
 	for _, capability := range *issuer.Capabilities {
+		logger.Debugf("Handle capability %s.", prettyPrintObject(capability))
 		decision, httpErr = evaluateCapability(capability, vc)
+		logger.Debugf("Decision was %s.", prettyPrintObject(decision))
 		if httpErr == (httpError{}) && decision.Decision {
 			logger.Debugf("Issuer is trusted. VC %s accepted.", prettyPrintObject(vc))
 			return decision, httpErr
 		}
 	}
-	return Decision{false, "Not allowing capability found."}, httpErr
+	return Decision{false, "No allowing capability found."}, httpErr
 }
 
 func evaluateCapability(capability Capability, vc DSBAVerifiableCredential) (decision Decision, httpErr httpError) {
 
+	logger.Debugf("Evaluates %s for capability %s.", prettyPrintObject(vc), prettyPrintObject(capability))
+
 	now := time.Now()
 
-	validFrom, _ := time.Parse(time.RFC3339, capability.ValidFor.From)
-	validTo, _ := time.Parse(time.RFC3339, capability.ValidFor.To)
+	validFrom, err := time.Parse(time.RFC3339, capability.ValidFor.From)
+	if err != nil {
+		logger.Warn("Was not able to parse timestamp.")
+	}
+	validTo, err := time.Parse(time.RFC3339, capability.ValidFor.To)
+	if err != nil {
+		logger.Warn("Was not able to parse timestamp.")
+	}
 	if now.Before(validFrom) || now.After(validTo) {
 		logger.Debugf("VC %s is not active by %s.", prettyPrintObject(vc), prettyPrintObject(capability))
 		return Decision{false, "Capabilitiy is not active."}, httpErr
@@ -47,20 +52,17 @@ func evaluateCapability(capability Capability, vc DSBAVerifiableCredential) (dec
 	}
 
 	if capability.CredentialsType == "CustomerCredential" {
-		credentialsSubject, ok := vc.CredentialSubject.(*CustomerCredentialSubject)
-		if !ok {
-			return Decision{false, "CredentialSubject is not of the expected format for type CustomerCredential."}, httpErr
-		}
-		return CustomerCredentialVerifier{}.Verify(capability.Claims, credentialsSubject)
+		logger.Debugf("Verify customer credential", prettyPrintObject(vc.CredentialSubject))
+		return CustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject)
 	} else if capability.CredentialsType == "IShareCustomerCredential" {
 
 		// not properly implemented yet
-		credentialsSubject, ok := vc.CredentialSubject.(*CustomerCredentialSubject)
-		if !ok {
-			return Decision{false, "CredentialSubject is not of the expected format for type CustomerCredential."}, httpErr
-		}
-		return CustomerCredentialVerifier{}.Verify(capability.Claims, credentialsSubject)
+		logger.Debugf("Verify ishare customer credential.")
+		return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer.Id)
+	} else {
+		logger.Debugf("Type %s is not supported.", capability.CredentialsType)
 	}
+	logger.Debug("Successfully verified vc.")
 	return Decision{true, "No special checks required for the given type of credential."}, httpErr
 }
 

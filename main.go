@@ -93,9 +93,11 @@ func init() {
 		logger.SetFormatter(&logrus.TextFormatter{})
 	}
 
-	serverPort, err = strconv.Atoi(serverPortEnvVar)
+	serverPortEnv, err := strconv.Atoi(serverPortEnvVar)
 	if err != nil {
-		logger.Fatalf("No valid server port was provided, run on default %s.", serverPort)
+		logger.Warnf("No valid server port was provided, run on default %s.", serverPort)
+	} else {
+		serverPort = serverPortEnv
 	}
 }
 

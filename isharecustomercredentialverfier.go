@@ -2,7 +2,7 @@ package main
 
 type IShareCustomerCredentialVerifier struct{}
 
-func (IShareCustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *IShareCredentialsSubject, issuerId string) (decision Decision, err httpError) {
+func (IShareCustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *CredentialSubject, issuerId string) (decision Decision, err httpError) {
 
 	// TODO: get policies for the referenced roles from ar of issuer
 	// then get policies coverd by the claims and match both.

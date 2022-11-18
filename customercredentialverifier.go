@@ -6,7 +6,7 @@ import (
 
 type CustomerCredentialVerifier struct{}
 
-func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *CustomerCredentialSubject) (descision Decision, err httpError) {
+func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *CredentialSubject) (descision Decision, err httpError) {
 
 	roleClaim := Claim{}
 	for _, claim := range *claims {
@@ -24,7 +24,7 @@ func (CustomerCredentialVerifier) Verify(claims *[]Claim, credentialSubject *Cus
 	}
 
 	for _, role := range credentialSubject.Roles {
-		if !contains(roleClaim.AllowedValues, role) {
+		if !contains(roleClaim.AllowedValues, role.Name) {
 			return Decision{false, fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", role, prettyPrintObject(roleClaim))}, err
 		}
 	}

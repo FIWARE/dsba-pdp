@@ -29,10 +29,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", prettyPrintObject(verifiableCredential))}, httpErr
 	}
 
-	credentialsSubject := verifiableCredential.CredentialSubject.(*IShareCredentialsSubject)
-	if credentialsSubject.Id == "" {
-		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-credentialSubject.", prettyPrintObject(credentialsSubject))}, httpErr
-	}
+	credentialsSubject := verifiableCredential.CredentialSubject
 	authorizationRegistry := credentialsSubject.AuthorizationRegistry
 
 	if len(credentialsSubject.Roles) == 0 {
