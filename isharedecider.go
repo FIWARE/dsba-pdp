@@ -288,6 +288,7 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 
 		rootPool := x509.NewCertPool()
 		intermediatePool := x509.NewCertPool()
+		lastCert := len(x5cInterfaces) - 1
 		for i, cert := range x5cInterfaces {
 			if i == 0 {
 				// skip client cert
@@ -303,7 +304,7 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 				logger.Warnf("The cert could not be parsed. Cert: %s", cert.(string))
 				return nil, err
 			}
-			if i == len(x5cInterfaces) {
+			if i == lastCert {
 				rootPool.AddCert(parsedCert)
 				continue
 			}
