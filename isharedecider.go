@@ -287,6 +287,7 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 		}
 
 		rootPool := x509.NewCertPool()
+		intermediatePool := x509.NewCertPool()
 		for i, cert := range x5cInterfaces {
 			if i == 0 {
 				// skip client cert
@@ -302,14 +303,17 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 				logger.Warnf("The cert could not be parsed. Cert: %s", cert.(string))
 				return nil, err
 			}
-			rootPool.AddCert(parsedCert)
+			if i == len(x5cInterfaces) {
+				rootPool.AddCert(parsedCert)
+				continue
+			}
+			intermediatePool.AddCert(parsedCert)
 		}
-
-		//opts := x509.VerifyOptions{Roots: rootPool}
-		//if _, err := clientCert.Verify(opts); err != nil {
-		//	logger.Warnf("The cert could not be verified.")
-		//	return nil, err
-		//}
+		opts := x509.VerifyOptions{Roots: rootPool, Intermediates: intermediatePool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
+		if _, err := clientCert.Verify(opts); err != nil {
+			logger.Warnf("The cert could not be verified.")
+			return nil, err
+		}
 
 		logger.Debugf("Parsed certificate is: %v", clientCert)
 		return clientCert.PublicKey.(*rsa.PublicKey), nil
