@@ -30,10 +30,13 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	}
 
 	credentialsSubject := verifiableCredential.CredentialSubject
-	if credentialsSubject.Id == "" {
-		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-credentialSubject.", prettyPrintObject(credentialsSubject))}, httpErr
+
+	var authorizationRegistry *AuthorizationRegistry
+	if credentialsSubject.IShareCredentialsSubject == nil || credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry == nil {
+		authorizationRegistry = &PDPAuthorizationRegistry
+	} else {
+		authorizationRegistry = credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry
 	}
-	authorizationRegistry := credentialsSubject.AuthorizationRegistry
 
 	if len(credentialsSubject.Roles) == 0 {
 		return Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", prettyPrintObject(credentialsSubject))}, httpErr
@@ -44,8 +47,9 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 		return decision, httpErr
 	}
 
-	for _, role := range credentialsSubject.Roles {
-		decision, httpErr := decideForRole(requestTarget, roleIssuer, role, &authorizationRegistry, &requiredPolicies)
+	// in case of an IShareCustomerCredential, we need to check if the role-issuer has enough rights to access the request-target, before checking the delegation, e.g. the roles
+	if credentialsSubject.IShareCredentialsSubject != nil {
+		decision, httpErr = checkIShareTarget(requestTarget, roleIssuer, &requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
@@ -53,27 +57,32 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 			return decision, httpErr
 		}
 	}
-	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, verifiableCredential)}, httpErr
+
+	for _, role := range credentialsSubject.Roles {
+		decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
+		if httpErr != (httpError{}) {
+			return decision, httpErr
+		}
+		if decision.Decision {
+			return decision, httpErr
+		}
+	}
+	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, prettyPrintObject(verifiableCredential))}, httpErr
+}
+
+func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+	delegationEvidenceForRole, httpErr := getDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, &PDPAuthorizationRegistry)
+	if httpErr != (httpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(&PDPAuthorizationRegistry))
+		return decision, httpErr
+	}
+	decision = checkDelegationEvidence(delegationEvidenceForRole)
+	logger.Debugf("Decision for the role is: %s", prettyPrintObject(decision))
+	return decision, httpErr
 }
 
 func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
 
-	// get evidence from role-issuer to request-target
-	// in iShare, that means the role-issuer becomes the policyTarget and the requestTarget has to be the policyIssuer
-	delegationEvidenceForRequestTarget, httpErr := getDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, &PDPAuthorizationRegistry)
-	if httpErr != (httpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the pdp ar: %v", prettyPrintObject(PDPAuthorizationRegistry))
-		return decision, httpErr
-	}
-
-	decision = checkDelegationEvidence(delegationEvidenceForRequestTarget)
-
-	if !decision.Decision {
-		logger.Debugf("Delegation from role-issuer %s to the request target %s is not permitted by delegation evidence %s.", roleIssuer, requestTarget, prettyPrintObject(delegationEvidenceForRequestTarget))
-		return decision, httpErr
-	}
-
-	// the second allowance needs to be from the role-issuer to the role, e.g checking the data encoded in the Role-Object
 	delegationEvidenceForRole, httpErr := getDelegationEvidence(roleIssuer, role.Name, requiredPolicies, authorizationRegistry)
 	if httpErr != (httpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(authorizationRegistry))
@@ -278,6 +287,8 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 		}
 
 		rootPool := x509.NewCertPool()
+		intermediatePool := x509.NewCertPool()
+		lastCert := len(x5cInterfaces) - 1
 		for i, cert := range x5cInterfaces {
 			if i == 0 {
 				// skip client cert
@@ -293,10 +304,13 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 				logger.Warnf("The cert could not be parsed. Cert: %s", cert.(string))
 				return nil, err
 			}
-			rootPool.AddCert(parsedCert)
+			if i == lastCert {
+				rootPool.AddCert(parsedCert)
+				continue
+			}
+			intermediatePool.AddCert(parsedCert)
 		}
-
-		opts := x509.VerifyOptions{Roots: rootPool}
+		opts := x509.VerifyOptions{Roots: rootPool, Intermediates: intermediatePool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
 		if _, err := clientCert.Verify(opts); err != nil {
 			logger.Warnf("The cert could not be verified.")
 			return nil, err
