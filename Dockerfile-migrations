@@ -1,0 +1,12 @@
+FROM golang:1.18-alpine
+
+ENV MYSQL_HOST=localhost
+ENV MYSQL_PORT=3306
+ENV MYSQL_DATABASE=dsba
+ENV MYSQL_USERNAME=root
+ENV MYSQL_PASSWORD=password
+
+WORKDIR /go/src/app
+COPY ./ ./
+
+RUN go install github.com/go-rel/cmd/rel

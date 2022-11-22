@@ -37,14 +37,14 @@ func init() {
 	} else {
 		mySqlPort = 3306
 	}
-	mysqlDb := os.Getenv("MYSQL_DB")
+	mysqlDb := os.Getenv("MYSQL_DATABASE")
 	if mysqlDb == "" {
 		logger.Info("No mysql db configured, mysql repo not available.")
 		return
 	}
 	authEnabled := true
 
-	mysqlUser := os.Getenv("MYSQL_USER")
+	mysqlUser := os.Getenv("MYSQL_USERNAME")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
 
 	if mysqlUser == "" {
@@ -70,6 +70,7 @@ func init() {
 		return
 	}
 	repo = rel.New(adapter)
+
 }
 
 func (MySqlRepo) CreateIssuer(trustedIssuer TrustedIssuer) (httpErr httpError) {

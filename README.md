@@ -105,3 +105,15 @@ For ```IShareCustomerCredential```, the same role check will happen. In addition
 2. Decider
 
 Depending on the type of credential, the decider will now evaluate the request in the context of the VC. Currently, only the ```iShare-decider``` is implemented. Depending on the credentials type, the ```iShare-decider``` will use [iShare-compliant](https://dev.ishareworks.org) authoriation-registries to evaluate the request against the registered policies. 
+
+# Persistence
+
+To run the trusted issuer service with persistence, provide the following ENV-Vars:
+
+| Name | Description | Default |
+|------|-------------|---------|
+|   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
+|   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
+|   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
+|   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
+|   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
