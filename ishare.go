@@ -98,20 +98,13 @@ type IShareToken struct {
 }
 
 type IShareCredentialsSubject struct {
-	Id string `json:"id"`
 	// information about the authorization registry, to retrieve the policies for the issuer
-	AuthorizationRegistry AuthorizationRegistry `json:"authorizationRegistry"`
-	Roles                 []Role                `json:"roles"`
-	Name                  string                `json:"name,omitempty"`
-	GivenName             string                `json:"given_name,omitempty"`
-	FamilyName            string                `json:"family_name,omitempty"`
-	PreferredUsername     string                `json:"preferred_username,omitempty"`
-	Email                 string                `json:"email,omitempty"`
-}
-
-type Role struct {
-	// name of the role, for example READER
-	Name string `json:"name"`
+	AuthorizationRegistry *AuthorizationRegistry `json:"authorizationRegistry"`
+	Name                  string                 `json:"name,omitempty"`
+	GivenName             string                 `json:"given_name,omitempty"`
+	FamilyName            string                 `json:"family_name,omitempty"`
+	PreferredUsername     string                 `json:"preferred_username,omitempty"`
+	Email                 string                 `json:"email,omitempty"`
 }
 
 type AuthorizationRegistry struct {
