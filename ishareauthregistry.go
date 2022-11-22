@@ -66,64 +66,64 @@ func init() {
 
 	if err != nil || !ishareEnabled {
 		logger.Info("iShare is not enabled.")
-		return
-	}
-
-	certificatePath := os.Getenv("ISHARE_CERTIFICATE_PATH")
-	keyPath := os.Getenv("ISHARE_KEY_PATH")
-	iShareClientId = os.Getenv("ISHARE_CLIENT_ID")
-	iShareARId := os.Getenv("ISHARE_AR_ID")
-	iShareARUrl := os.Getenv("ISHARE_AUTHORIZATION_REGISTRY_URL")
-
-	delegationPathEnv := os.Getenv("ISHARE_DELEGATION_PATH")
-	tokenPathEnv := os.Getenv("ISHARE_TOKEN_PATH")
-
-	if certificatePath == "" {
-		logger.Fatal("Did not receive a valid certificate path.")
-	}
-
-	if keyPath == "" {
-		logger.Fatal("Did not receive a valid key path.")
-	}
-
-	if iShareClientId == "" {
-		logger.Fatal("No client id for the pdp was provided.")
-	}
-
-	PDPAuthorizationRegistry = AuthorizationRegistry{}
-
-	if iShareARUrl == "" {
-		logger.Fatal("No URL for the authorization registry was provided.")
-	}
-	PDPAuthorizationRegistry.Host = iShareARUrl
-
-	if iShareARId == "" {
-		logger.Fatal("No id for the authorization registry was provided.")
-	}
-	PDPAuthorizationRegistry.Id = iShareARId
-
-	if delegationPathEnv != "" {
-		PDPAuthorizationRegistry.DelegationPath = delegationPathEnv
 	} else {
-		PDPAuthorizationRegistry.DelegationPath = defaultDelegationPath
-	}
-	logger.Infof("Will use the delegtion address %s.", PDPAuthorizationRegistry.getDelegationAddress())
 
-	if tokenPathEnv != "" {
-		PDPAuthorizationRegistry.TokenPath = tokenPathEnv
-	} else {
-		PDPAuthorizationRegistry.TokenPath = defaultTokenPath
-	}
-	logger.Infof("Will use the token address %s.", PDPAuthorizationRegistry.getTokenAddress())
+		certificatePath := os.Getenv("ISHARE_CERTIFICATE_PATH")
+		keyPath := os.Getenv("ISHARE_KEY_PATH")
+		iShareClientId = os.Getenv("ISHARE_CLIENT_ID")
+		iShareARId := os.Getenv("ISHARE_AR_ID")
+		iShareARUrl := os.Getenv("ISHARE_AUTHORIZATION_REGISTRY_URL")
 
-	signingKey, err = getSigningKey(keyPath)
-	if err != nil {
-		logger.Fatalf("Was not able to read the rsa private key from %s", keyPath, err)
-	}
+		delegationPathEnv := os.Getenv("ISHARE_DELEGATION_PATH")
+		tokenPathEnv := os.Getenv("ISHARE_TOKEN_PATH")
 
-	certificateArray, err = getCertificateArray(certificatePath)
-	if err != nil {
-		logger.Fatalf("Was not able to read the certificate from %s", certificatePath, err)
+		if certificatePath == "" {
+			logger.Fatal("Did not receive a valid certificate path.")
+		}
+
+		if keyPath == "" {
+			logger.Fatal("Did not receive a valid key path.")
+		}
+
+		if iShareClientId == "" {
+			logger.Fatal("No client id for the pdp was provided.")
+		}
+
+		PDPAuthorizationRegistry = AuthorizationRegistry{}
+
+		if iShareARUrl == "" {
+			logger.Fatal("No URL for the authorization registry was provided.")
+		}
+		PDPAuthorizationRegistry.Host = iShareARUrl
+
+		if iShareARId == "" {
+			logger.Fatal("No id for the authorization registry was provided.")
+		}
+		PDPAuthorizationRegistry.Id = iShareARId
+
+		if delegationPathEnv != "" {
+			PDPAuthorizationRegistry.DelegationPath = delegationPathEnv
+		} else {
+			PDPAuthorizationRegistry.DelegationPath = defaultDelegationPath
+		}
+		logger.Infof("Will use the delegtion address %s.", PDPAuthorizationRegistry.getDelegationAddress())
+
+		if tokenPathEnv != "" {
+			PDPAuthorizationRegistry.TokenPath = tokenPathEnv
+		} else {
+			PDPAuthorizationRegistry.TokenPath = defaultTokenPath
+		}
+		logger.Infof("Will use the token address %s.", PDPAuthorizationRegistry.getTokenAddress())
+
+		signingKey, err = getSigningKey(keyPath)
+		if err != nil {
+			logger.Fatalf("Was not able to read the rsa private key from %s", keyPath, err)
+		}
+
+		certificateArray, err = getCertificateArray(certificatePath)
+		if err != nil {
+			logger.Fatalf("Was not able to read the certificate from %s", certificatePath, err)
+		}
 	}
 }
 

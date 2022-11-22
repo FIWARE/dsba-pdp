@@ -17,10 +17,9 @@ var decider Decider
 func init() {
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
 
-	if ishareErr == nil || !ishareEnabled {
+	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare is enabled.")
 		decider = iShareDecider{}
-		return
 	}
 }
 

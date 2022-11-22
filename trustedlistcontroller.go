@@ -102,7 +102,7 @@ func getIssuers(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, ProblemDetails{Type: "InvalidParameter", Status: http.StatusBadRequest, Title: "Invalid query parameter", Detail: fmt.Sprintf("Limit is not a valid number: %s", limitParam)})
 		return
 	}
-	offset, err := strconv.Atoi(limitParam)
+	offset, err := strconv.Atoi(offsetParam)
 	if err != nil || offset < 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, ProblemDetails{Type: "InvalidParameter", Status: http.StatusBadRequest, Title: "Invalid query parameter", Detail: fmt.Sprintf("Offset is not a valid number: %s", offsetParam)})
 		return

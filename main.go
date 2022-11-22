@@ -32,14 +32,7 @@ var globalHttpClient httpClient = &http.Client{}
 var issuerRepo IssuerRepository
 
 func init() {
-	dbEnabled, dbErr := strconv.ParseBool(os.Getenv("DB_ENABLED"))
 
-	if dbErr != nil && dbEnabled {
-		logger.Fatal("DB is not yet supported.")
-		return
-	}
-	logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
-	issuerRepo = InMemoryRepo{}
 }
 
 /**
@@ -67,6 +60,16 @@ func main() {
 }
 
 func init() {
+
+	mySql := os.Getenv("MYSQL_HOST")
+
+	if mySql != "" {
+		issuerRepo = MySqlRepo{}
+		logger.Infof("Connected to mysql as storage backend.")
+	} else {
+		logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
+		issuerRepo = InMemoryRepo{}
+	}
 
 	serverPortEnvVar := os.Getenv("SERVER_PORT")
 	enableJsonLogging, err := strconv.ParseBool(os.Getenv("JSON_LOGGING_ENABLED"))
