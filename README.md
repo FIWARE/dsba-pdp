@@ -117,3 +117,9 @@ To run the trusted issuer service with persistence, provide the following ENV-Va
 |   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
 |   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
 |   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
+
+In order to setup the schema, run the db-migrations container, configurable with the same environment-variables:
+
+```shell
+  docker run quay.io/wi_stefan/dsba-db-migrations rel migrate
+```
