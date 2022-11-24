@@ -33,9 +33,22 @@ func CheckRoles(claims *[]Claim, credentialSubject *CredentialSubject) (descisio
 	}
 
 	for _, role := range credentialSubject.Roles {
-		if !contains(roleClaim.AllowedValues, role.Name) {
-			return Decision{false, fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", role, prettyPrintObject(roleClaim))}, err
+		if role.Target == ProviderId {
+			descision = isRoleAllowed(role.Name, roleClaim)
+			if !descision.Decision {
+				return descision, err
+			}
 		}
 	}
 	return Decision{true, "Role claims allowed."}, err
+}
+
+func isRoleAllowed(roleNames []string, roleClaim Claim) (decision Decision) {
+	for _, roleName := range roleNames {
+		if !contains(roleClaim.AllowedValues, roleName) {
+			return Decision{false, fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", roleName, prettyPrintObject(roleClaim))}
+
+		}
+	}
+	return Decision{true, fmt.Sprint("Role is allowed.")}
 }

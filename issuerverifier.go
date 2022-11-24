@@ -2,11 +2,21 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
+var ProviderId string
+
+func init() {
+	ProviderId = os.Getenv("PROVIDER_ID")
+	if ProviderId == "" {
+		logger.Fatalf("No provider id configured, cannot verify credentials.")
+	}
+}
+
 func Verify(vc DSBAVerifiableCredential) (decision Decision, httpErr httpError) {
-	issuerId := vc.Issuer.Id
+	issuerId := vc.Issuer
 	if issuerId == "" {
 		return Decision{false, fmt.Sprintf("VC %s does not contain a valid issuer id.", prettyPrintObject(vc))}, httpErr
 	}
@@ -58,7 +68,7 @@ func evaluateCapability(capability Capability, vc DSBAVerifiableCredential) (dec
 
 		// not properly implemented yet
 		logger.Debugf("Verify ishare customer credential.")
-		return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer.Id)
+		return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
 	} else {
 		logger.Debugf("Type %s is not supported.", capability.CredentialsType)
 	}

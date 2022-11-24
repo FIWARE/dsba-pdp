@@ -4,6 +4,9 @@ ENV SERVER_PORT="8080"
 ENV GIN_MODE=release
 ENV JSON_LOGGING_ENABLED=true
 
+# Provider ID to be used for veryfing VCs
+ENV PROVIDER_ID="did:ebsi:myprovider"
+
 # ISHARE RELATED
 ENV ISHARE_ENABLED=true
 ENV ISHARE_CERTIFICATE_PATH="/iShare/certificate.pem"

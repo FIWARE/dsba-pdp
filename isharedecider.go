@@ -24,7 +24,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	requestTarget := iShareClientId
 	verifiableCredential := token.VerifiableCredential
 	logger.Debugf("Received VC: %s", prettyPrintObject(verifiableCredential))
-	roleIssuer := verifiableCredential.Issuer.Id
+	roleIssuer := verifiableCredential.Issuer
 	if roleIssuer == "" {
 		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", prettyPrintObject(verifiableCredential))}, httpErr
 	}
@@ -59,7 +59,24 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	}
 
 	for _, role := range credentialsSubject.Roles {
-		decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
+
+		if role.Target == ProviderId {
+			decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
+			if httpErr != (httpError{}) {
+				return decision, httpErr
+			}
+			if decision.Decision {
+				return decision, httpErr
+			}
+		}
+
+	}
+	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, prettyPrintObject(verifiableCredential))}, httpErr
+}
+
+func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+	for _, roleName := range role.Name {
+		decision, httpErr = decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
 		}
@@ -67,7 +84,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 			return decision, httpErr
 		}
 	}
-	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, prettyPrintObject(verifiableCredential))}, httpErr
+	return decision, httpErr
 }
 
 func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
@@ -81,9 +98,9 @@ func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies
 	return decision, httpErr
 }
 
-func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+func decideForRolename(requestTarget string, roleIssuer string, roleName string, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
 
-	delegationEvidenceForRole, httpErr := getDelegationEvidence(roleIssuer, role.Name, requiredPolicies, authorizationRegistry)
+	delegationEvidenceForRole, httpErr := getDelegationEvidence(roleIssuer, roleName, requiredPolicies, authorizationRegistry)
 	if httpErr != (httpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(authorizationRegistry))
 		return decision, httpErr
