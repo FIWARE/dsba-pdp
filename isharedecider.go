@@ -31,13 +31,6 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 
 	credentialsSubject := verifiableCredential.CredentialSubject
 
-	var authorizationRegistry *AuthorizationRegistry
-	if credentialsSubject.IShareCredentialsSubject == nil || credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry == nil {
-		authorizationRegistry = &PDPAuthorizationRegistry
-	} else {
-		authorizationRegistry = credentialsSubject.IShareCredentialsSubject.AuthorizationRegistry
-	}
-
 	if len(credentialsSubject.Roles) == 0 {
 		return Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", prettyPrintObject(credentialsSubject))}, httpErr
 	}
@@ -49,6 +42,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 
 	// in case of an IShareCustomerCredential, we need to check if the role-issuer has enough rights to access the request-target, before checking the delegation, e.g. the roles
 	if credentialsSubject.IShareCredentialsSubject != nil {
+
 		decision, httpErr = checkIShareTarget(requestTarget, roleIssuer, &requiredPolicies)
 		if httpErr != (httpError{}) {
 			return decision, httpErr
@@ -61,6 +55,19 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	for _, role := range credentialsSubject.Roles {
 
 		if role.Target == ProviderId {
+			var authorizationRegistry *AuthorizationRegistry
+			if role.Provider == "" {
+				authorizationRegistry = &PDPAuthorizationRegistry
+			} else if credentialsSubject.AuthorizationRegistries != nil {
+				if ar, ok := (*credentialsSubject.AuthorizationRegistries)[role.Provider]; ok {
+					authorizationRegistry = &ar
+				} else {
+					return decision, httpError{status: http.StatusBadRequest, message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
+				}
+			} else {
+				return decision, httpError{status: http.StatusBadRequest, message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
+			}
+
 			decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
 			if httpErr != (httpError{}) {
 				return decision, httpErr

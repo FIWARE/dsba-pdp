@@ -49,8 +49,9 @@ type DSBAVerifiableCredential struct {
 
 type Role struct {
 	// name of the role, for example READER
-	Name   []string `json:"name"`
-	Target string   `json:"target"`
+	Name     []string `json:"name"`
+	Target   string   `json:"target"`
+	Provider string   `json:"provider,omitempty"`
 }
 
 type CredentialSubject struct {

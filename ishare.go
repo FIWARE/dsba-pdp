@@ -99,16 +99,11 @@ type IShareToken struct {
 
 type IShareCredentialsSubject struct {
 	// information about the authorization registry, to retrieve the policies for the issuer
-	AuthorizationRegistry *AuthorizationRegistry `json:"authorizationRegistry"`
-	Name                  string                 `json:"name,omitempty"`
-	GivenName             string                 `json:"given_name,omitempty"`
-	FamilyName            string                 `json:"family_name,omitempty"`
-	PreferredUsername     string                 `json:"preferred_username,omitempty"`
-	Email                 string                 `json:"email,omitempty"`
+	AuthorizationRegistries *map[string]AuthorizationRegistry `json:"authorizationRegistry"`
 }
 
 type AuthorizationRegistry struct {
-	Id   string `json:"id"`
+	Id   string `json:"id,omitempty"`
 	Host string `json:"host"`
 	// will use default path it not included - {host}/connect/token
 	TokenPath string `json:"tokenPath,omitempty"`
