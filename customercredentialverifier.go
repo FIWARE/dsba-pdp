@@ -50,5 +50,5 @@ func isRoleAllowed(roleNames []string, roleClaim Claim) (decision Decision) {
 
 		}
 	}
-	return Decision{true, fmt.Sprint("Role is allowed.")}
+	return Decision{true, "Roles allowed."}
 }
