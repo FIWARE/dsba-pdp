@@ -1,4 +1,4 @@
-package main
+package decision
 
 import (
 	"crypto/rsa"
@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/wistefan/dsba-pdp/config"
+	"github.com/wistefan/dsba-pdp/logging"
+	"github.com/wistefan/dsba-pdp/model"
 )
 
 /**
@@ -18,25 +21,25 @@ import (
  */
 const ngsiPathIndicator string = "/ngsi-ld/v1/entities"
 
-func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision Decision, httpErr httpError) {
+func (IShareDecider) Decide(token *model.DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision model.Decision, httpErr model.HttpError) {
 
 	// we need to use this as request target to check request towards ourself
 	requestTarget := iShareClientId
 	verifiableCredential := token.VerifiableCredential
-	logger.Debugf("Received VC: %s", prettyPrintObject(verifiableCredential))
+	logger.Debugf("Received VC: %s", logging.PrettyPrintObject(verifiableCredential))
 	roleIssuer := verifiableCredential.Issuer
 	if roleIssuer == "" {
-		return Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", prettyPrintObject(verifiableCredential))}, httpErr
+		return model.Decision{false, fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", logging.PrettyPrintObject(verifiableCredential))}, httpErr
 	}
 
 	credentialsSubject := verifiableCredential.CredentialSubject
 
 	if len(credentialsSubject.Roles) == 0 {
-		return Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", prettyPrintObject(credentialsSubject))}, httpErr
+		return model.Decision{false, fmt.Sprintf("The VC %s does not contain any roles.", logging.PrettyPrintObject(credentialsSubject))}, httpErr
 	}
 
 	requiredPolicies, httpErr := buildRequiredPolicies(originalAddress, requestType, requestBody)
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return decision, httpErr
 	}
 
@@ -44,7 +47,7 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 	if credentialsSubject.IShareCredentialsSubject != nil {
 
 		decision, httpErr = checkIShareTarget(requestTarget, roleIssuer, &requiredPolicies)
-		if httpErr != (httpError{}) {
+		if httpErr != (model.HttpError{}) {
 			return decision, httpErr
 		}
 		if decision.Decision {
@@ -54,22 +57,22 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 
 	for _, role := range credentialsSubject.Roles {
 
-		if role.Target == ProviderId {
-			var authorizationRegistry *AuthorizationRegistry
+		if role.Target == config.ProviderId() {
+			var authorizationRegistry *model.AuthorizationRegistry
 			if role.Provider == "" {
 				authorizationRegistry = &PDPAuthorizationRegistry
 			} else if credentialsSubject.AuthorizationRegistries != nil {
 				if ar, ok := (*credentialsSubject.AuthorizationRegistries)[role.Provider]; ok {
 					authorizationRegistry = &ar
 				} else {
-					return decision, httpError{status: http.StatusBadRequest, message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
+					return decision, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
 				}
 			} else {
-				return decision, httpError{status: http.StatusBadRequest, message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
+				return decision, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
 			}
 
 			decision, httpErr = decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
-			if httpErr != (httpError{}) {
+			if httpErr != (model.HttpError{}) {
 				return decision, httpErr
 			}
 			if decision.Decision {
@@ -78,13 +81,13 @@ func (iShareDecider) Decide(token *DSBAToken, originalAddress string, requestTyp
 		}
 
 	}
-	return Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, prettyPrintObject(verifiableCredential))}, httpErr
+	return model.Decision{false, fmt.Sprintf("Was not able to find a role allowing the access to %s - %s in VC %s.", requestType, requestTarget, logging.PrettyPrintObject(verifiableCredential))}, httpErr
 }
 
-func decideForRole(requestTarget string, roleIssuer string, role Role, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+func decideForRole(requestTarget string, roleIssuer string, role model.Role, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	for _, roleName := range role.Name {
 		decision, httpErr = decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
-		if httpErr != (httpError{}) {
+		if httpErr != (model.HttpError{}) {
 			return decision, httpErr
 		}
 		if decision.Decision {
@@ -94,50 +97,50 @@ func decideForRole(requestTarget string, roleIssuer string, role Role, authoriza
 	return decision, httpErr
 }
 
-func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+func checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	delegationEvidenceForRole, httpErr := getDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, &PDPAuthorizationRegistry)
-	if httpErr != (httpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(&PDPAuthorizationRegistry))
+	if httpErr != (model.HttpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(&PDPAuthorizationRegistry))
 		return decision, httpErr
 	}
 	decision = checkDelegationEvidence(delegationEvidenceForRole)
-	logger.Debugf("Decision for the role is: %s", prettyPrintObject(decision))
+	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
 	return decision, httpErr
 }
 
-func decideForRolename(requestTarget string, roleIssuer string, roleName string, authorizationRegistry *AuthorizationRegistry, requiredPolicies *[]Policy) (decision Decision, httpErr httpError) {
+func decideForRolename(requestTarget string, roleIssuer string, roleName string, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 
 	delegationEvidenceForRole, httpErr := getDelegationEvidence(roleIssuer, roleName, requiredPolicies, authorizationRegistry)
-	if httpErr != (httpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", prettyPrintObject(authorizationRegistry))
+	if httpErr != (model.HttpError{}) {
+		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(authorizationRegistry))
 		return decision, httpErr
 	}
 	decision = checkDelegationEvidence(delegationEvidenceForRole)
-	logger.Debugf("Decision for the role is: %s", prettyPrintObject(decision))
+	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
 	return decision, httpErr
 }
 
-func checkDelegationEvidence(delegationEvidence *DelegationEvidence) (decision Decision) {
+func checkDelegationEvidence(delegationEvidence *model.DelegationEvidence) (decision model.Decision) {
 	if !isActive(delegationEvidence) {
-		return Decision{false, fmt.Sprintf("DelegationEvidence %s is not inside a valid time range.", prettyPrintObject(*delegationEvidence))}
+		return model.Decision{false, fmt.Sprintf("DelegationEvidence %s is not inside a valid time range.", logging.PrettyPrintObject(*delegationEvidence))}
 	}
 
 	if !doesPermitRequest(&delegationEvidence.PolicySets) {
-		return Decision{false, fmt.Sprintf("DelegationEvidence %s does not permit the request.", prettyPrintObject(*delegationEvidence))}
+		return model.Decision{false, fmt.Sprintf("DelegationEvidence %s does not permit the request.", logging.PrettyPrintObject(*delegationEvidence))}
 	}
 
-	return Decision{true, "Request allowed."}
+	return model.Decision{true, "Request allowed."}
 }
 
-func buildRequiredPolicies(originalAddress string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
+func buildRequiredPolicies(originalAddress string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
 	requestedUrl, err := url.Parse(originalAddress)
 
 	if err != nil {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The original address is not a url %s", originalAddress), err}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("The original address is not a url %s", originalAddress), err}
 	}
 
 	if !strings.Contains(requestedUrl.Path, ngsiPathIndicator) {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The original address is not an ngsi request %s", originalAddress), err}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("The original address is not an ngsi request %s", originalAddress), err}
 	}
 
 	plainPath := strings.ReplaceAll(requestedUrl.Path, ngsiPathIndicator, "")
@@ -163,19 +166,19 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 	if strings.Contains(plainPath, "/attrs") {
 		return buildRequiredPoliciesForSingleAttr(entityId, pathParts[len(pathParts)-1], requestType)
 	}
-	return policies, httpError{http.StatusBadRequest, fmt.Sprintf("The request %s : %s is not supported by the iShareDecider.", requestType, originalAddress), nil}
+	return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("The request %s : %s is not supported by the IShareDecider.", requestType, originalAddress), nil}
 }
 
-func buildRequiredPoliciesForEntity(entityId string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
-	var resource Resource
+func buildRequiredPoliciesForEntity(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
+	var resource model.Resource
 
 	entityType, httpErr := getTypeFromId(entityId)
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return policies, httpErr
 	}
 
 	if requestType == "GET" || requestType == "DELETE" {
-		resource = Resource{
+		resource = model.Resource{
 			Type:        entityType,
 			Identifiers: []string{entityId},
 			Attributes:  []string{"*"},
@@ -183,7 +186,7 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 	} else
 	// overwrites the full entity, e.g. no attribute restriction can be allowed
 	if requestType == "PUT" {
-		resource = Resource{
+		resource = model.Resource{
 			Type:        entityType,
 			Identifiers: []string{entityId},
 			Attributes:  []string{"*"},
@@ -191,61 +194,61 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 	} else
 	// on PATCH, only the attributes in the request body are touched, e.g. the can be included.
 	if requestType == "PATCH" {
-		resource = Resource{
+		resource = model.Resource{
 			Type:        entityType,
 			Identifiers: []string{entityId},
 			Attributes:  getAttributesFromBody(requestBody),
 		}
 	} else {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities/{id}.", requestType), nil}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities/{id}.", requestType), nil}
 	}
 	// empty env is again a workaround for ishare test ar...
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &Environment{ServiceProviders: []string{}}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
-func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, requestType string) (policies []Policy, httpErr httpError) {
+func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, requestType string) (policies []model.Policy, httpErr model.HttpError) {
 	if requestType != "POST" && requestType != "PATCH" && requestType != "DELETE" {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /attrs.", requestType), nil}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /attrs.", requestType), nil}
 	}
 	entityType, httpErr := getTypeFromId(entityId)
 
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return policies, httpErr
 	}
 
-	resource := Resource{
+	resource := model.Resource{
 		Type:        entityType,
 		Identifiers: []string{entityId},
 		Attributes:  []string{attributeName},
 	}
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
-func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
+func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
 
 	if requestType != "POST" && requestType != "PATCH" {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /attrs.", requestType), nil}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /attrs.", requestType), nil}
 	}
 
-	resource := Resource{
+	resource := model.Resource{
 		Type:        (*requestBody)["type"].(string),
 		Identifiers: []string{entityId},
 		Attributes:  getAttributesFromBody(requestBody)}
 
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
-func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []Policy, httpErr httpError) {
+func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
 
-	var resource Resource
+	var resource model.Resource
 
 	if requestType == "GET" {
 		entityType := requestUrl.Query().Get("type")
 		identifiers := deleteEmpty(strings.Split(requestUrl.Query().Get("id"), ","))
 		attributes := deleteEmpty(strings.Split(requestUrl.Query().Get("attrs"), ","))
 		if entityType == "" && len(identifiers) == 0 && len(attributes) == 0 {
-			return policies, httpError{http.StatusBadRequest, fmt.Sprint("GET-Requests to /entities requires at least one of type, id or attrs.", requestType), nil}
+			return policies, model.HttpError{http.StatusBadRequest, fmt.Sprint("GET-Requests to /entities requires at least one of type, id or attrs.", requestType), nil}
 		}
 		// workaround for the broken ishare ar-api
 		if len(attributes) == 0 {
@@ -255,20 +258,20 @@ func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, r
 			identifiers = append(identifiers, "*")
 		}
 
-		resource = Resource{
+		resource = model.Resource{
 			Type:        entityType,
 			Identifiers: identifiers,
 			Attributes:  attributes}
 	} else if requestType == "POST" {
-		resource = Resource{
+		resource = model.Resource{
 			Type:        (*requestBody)["type"].(string),
 			Identifiers: []string{"*"},
 			Attributes:  getAttributesFromBody(requestBody)}
 	} else {
-		return policies, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities.", requestType), nil}
+		return policies, model.HttpError{http.StatusBadRequest, fmt.Sprintf("%s is not supported on /entities.", requestType), nil}
 	}
 
-	return []Policy{{Target: &PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
@@ -282,17 +285,17 @@ func getAttributesFromBody(requestBody *map[string]interface{}) (attributes []st
 	return
 }
 
-func getTypeFromId(entityId string) (entityType string, httpErr httpError) {
+func getTypeFromId(entityId string) (entityType string, httpErr model.HttpError) {
 	idParts := strings.Split(entityId, ":")
 
 	if len(idParts) < 4 {
-		return entityType, httpError{http.StatusBadRequest, fmt.Sprintf("%s is not a valid entity id.", entityId), nil}
+		return entityType, model.HttpError{http.StatusBadRequest, fmt.Sprintf("%s is not a valid entity id.", entityId), nil}
 	}
 	return idParts[2], httpErr
 }
 
-func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr httpError) {
-	token, err := jwt.ParseWithClaims(tokenString, &IShareToken{}, func(token *jwt.Token) (interface{}, error) {
+func parseIShareToken(tokenString string) (parsedToken *model.IShareToken, httpErr model.HttpError) {
+	token, err := jwt.ParseWithClaims(tokenString, &model.IShareToken{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("invalid_token_method")
 		}
@@ -345,16 +348,16 @@ func parseIShareToken(tokenString string) (parsedToken *IShareToken, httpErr htt
 	})
 
 	if err != nil {
-		return parsedToken, httpError{http.StatusBadGateway, fmt.Sprintf("Was not able to parse token. Error: %v", err), err}
+		return parsedToken, model.HttpError{http.StatusBadGateway, fmt.Sprintf("Was not able to parse token. Error: %v", err), err}
 	}
 	if !token.Valid {
-		return parsedToken, httpError{http.StatusBadGateway, fmt.Sprintf("Did not receive a valid token. Error: %v", err), err}
+		return parsedToken, model.HttpError{http.StatusBadGateway, fmt.Sprintf("Did not receive a valid token. Error: %v", err), err}
 	}
-	return token.Claims.(*IShareToken), httpErr
+	return token.Claims.(*model.IShareToken), httpErr
 
 }
 
-func isActive(delegationEvidence *DelegationEvidence) bool {
+func isActive(delegationEvidence *model.DelegationEvidence) bool {
 
 	timeNotBefore := time.Unix((*delegationEvidence).NotBefore, 0)
 	timeNotOnOrAfter := time.Unix((*delegationEvidence).NotOnOrAfter, 0)
@@ -368,55 +371,55 @@ func isActive(delegationEvidence *DelegationEvidence) bool {
 		return true
 	}
 
-	logger.Debugf("The retrieved delegation evidence %v is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", prettyPrintObject(*delegationEvidence), isNotBefore, isNotAfter, isNotNow)
+	logger.Debugf("The retrieved delegation evidence %s is not active anymore. IsNotBefore: %v IsNotAfter: %v IsNotNow: %v", logging.PrettyPrintObject(*delegationEvidence), isNotBefore, isNotAfter, isNotNow)
 	return false
 }
 
-func doesPermitRequest(policySets *[]PolicySet) bool {
+func doesPermitRequest(policySets *[]model.PolicySet) bool {
 	if policySets == nil || len(*policySets) == 0 {
-		logger.Debug("No permit policy found, since the policy sets array is empty: %v", prettyPrintObject(*policySets))
+		logger.Debugf("No permit policy found, since the policy sets array is empty: %s", logging.PrettyPrintObject(*policySets))
 		return false
 	}
 	for _, policySet := range *policySets {
 		if !doesSetPermitRequest(&policySet) {
-			logger.Debugf("PolicySet does not permit the request: %v.", prettyPrintObject(*policySets))
+			logger.Debugf("PolicySet does not permit the request: %s.", logging.PrettyPrintObject(*policySets))
 			return false
 		}
 	}
-	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*policySets))
+	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySets))
 	return true
 }
 
-func doesSetPermitRequest(policySet *PolicySet) bool {
+func doesSetPermitRequest(policySet *model.PolicySet) bool {
 	if policySet.Policies == nil || len(policySet.Policies) == 0 {
-		logger.Debug("No permit policy found, since the policies array is empty for set: %v", prettyPrintObject(*policySet))
+		logger.Debugf("No permit policy found, since the policies array is empty for set: %s", logging.PrettyPrintObject(*policySet))
 		return false
 	}
 	for _, policy := range policySet.Policies {
 		if !doRulesPermitRequest(&policy.Rules) {
-			logger.Debugf("Policy does not permit the request: %v.", prettyPrintObject(policy))
+			logger.Debugf("Policy does not permit the request: %s.", logging.PrettyPrintObject(policy))
 			return false
 		}
 	}
-	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*policySet))
+	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySet))
 	return true
 }
 
-func doRulesPermitRequest(rules *[]Rule) bool {
+func doRulesPermitRequest(rules *[]model.Rule) bool {
 	if rules == nil || len(*rules) == 0 {
 		logger.Debug("No permit rule found, since the rule array is empty.")
 		return false
 
 	}
 	for _, rule := range *rules {
-		if rule.Effect != iSharePermitEffect {
-			logger.Debugf("Request denied, found a non-permit rule: %v", prettyPrintObject(rule))
+		if rule.Effect != model.ISharePermitEffect {
+			logger.Debugf("Request denied, found a non-permit rule: %s", logging.PrettyPrintObject(rule))
 			return false
 		}
 	}
-	logger.Debugf("At least one permit was found in %v", prettyPrintObject(*rules))
+	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*rules))
 	return true
 
 }
 
-type iShareDecider struct{}
+type IShareDecider struct{}

@@ -1,4 +1,4 @@
-package main
+package model
 
 type TrustedIssuer struct {
 	Id           string        `json:"id"`

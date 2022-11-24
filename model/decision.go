@@ -1,12 +1,6 @@
-package main
+package model
 
 import "github.com/golang-jwt/jwt/v4"
-
-// interface of the configured decider
-
-type Decider interface {
-	Decide(token *DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (descision Decision, err httpError)
-}
 
 // error interface
 
@@ -15,18 +9,18 @@ type Decision struct {
 	Reason   string `json:"reason"`
 }
 
-type httpError struct {
-	status    int
-	message   string
-	rootError error
+type HttpError struct {
+	Status    int
+	Message   string
+	RootError error
 }
 
-func (err *httpError) Error() string {
-	return err.message
+func (err *HttpError) Error() string {
+	return err.Message
 }
 
-func (err *httpError) GetRoot() error {
-	return err.rootError
+func (err *HttpError) GetRoot() error {
+	return err.RootError
 }
 
 // token as used by the dsba-mvf

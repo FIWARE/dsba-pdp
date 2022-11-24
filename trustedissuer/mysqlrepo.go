@@ -1,4 +1,4 @@
-package main
+package trustedissuer
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"github.com/go-rel/rel"
 	"github.com/go-rel/rel/where"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/wistefan/dsba-pdp/logging"
+	"github.com/wistefan/dsba-pdp/model"
 	dbModel "github.com/wistefan/dsba-pdp/sql"
 )
 
@@ -66,62 +68,62 @@ func init() {
 
 	adapter, err := mysql.Open(connectionString)
 	if err != nil {
-		logger.Fatalf("Was not able to connect to db: %s:%d/%s as user %s.", mysqlHost, mySqlPort, mysqlDb, mysqlUser, err)
+		logger.Fatalf("Was not able to connect to db: %s:%d/%s as user %s. Err: %v", mysqlHost, mySqlPort, mysqlDb, mysqlUser, err)
 		return
 	}
 	repo = rel.New(adapter)
 
 }
 
-func (MySqlRepo) CreateIssuer(trustedIssuer TrustedIssuer) (httpErr httpError) {
+func (MySqlRepo) CreateIssuer(trustedIssuer model.TrustedIssuer) (httpErr model.HttpError) {
 	err := repo.Find(context.TODO(), &dbModel.TrustedIssuer{}, where.Eq("id", trustedIssuer.Id))
 	if err == nil {
-		return httpError{status: http.StatusConflict, message: "Issuer already exists.", rootError: nil}
+		return model.HttpError{Status: http.StatusConflict, Message: "Issuer already exists.", RootError: nil}
 	}
 	logger.Infof("Error %v", err.Error())
 
 	sqlIssuer := toSqlIssuer(trustedIssuer)
-	logger.Infof("Issuer %s", prettyPrintObject(sqlIssuer))
+	logger.Infof("Issuer %s", logging.PrettyPrintObject(sqlIssuer))
 	err = persistIssuer(sqlIssuer)
 	if err != nil {
-		return httpError{status: http.StatusInternalServerError, message: "Was not able to store issuer.", rootError: err}
+		return model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to store issuer.", RootError: err}
 	}
 
 	return httpErr
 }
 
-func (MySqlRepo) GetIssuer(id string) (trustedIssuer TrustedIssuer, httpErr httpError) {
+func (MySqlRepo) GetIssuer(id string) (trustedIssuer model.TrustedIssuer, httpErr model.HttpError) {
 
 	sqlIssuer, httpErr := getSqlIssuer(id)
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return trustedIssuer, httpErr
 	}
 	return fromSqlIssuer(sqlIssuer), httpErr
 }
 
-func getSqlIssuer(id string) (trustedIssuer dbModel.TrustedIssuer, httpErr httpError) {
+func getSqlIssuer(id string) (trustedIssuer dbModel.TrustedIssuer, httpErr model.HttpError) {
 	ctx := context.TODO()
 
 	var dbIssuer dbModel.TrustedIssuer = dbModel.TrustedIssuer{}
 
 	err := repo.Find(ctx, &dbIssuer, where.Eq("id", id))
 	if err != nil {
-		return trustedIssuer, httpError{status: http.StatusNotFound, message: fmt.Sprintf("Issuer %s not found.", id), rootError: nil}
+		return trustedIssuer, model.HttpError{Status: http.StatusNotFound, Message: fmt.Sprintf("Issuer %s not found.", id), RootError: nil}
 	}
 	if err != nil {
-		return trustedIssuer, httpError{status: http.StatusInternalServerError, message: "Was not able to load capabilities", rootError: err}
+		return trustedIssuer, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to load capabilities", RootError: err}
 	}
 	loadedCapabilities := []dbModel.Capability{}
 	for _, capability := range dbIssuer.Capabilities {
 		err = repo.Find(ctx, &capability, where.Eq("id", capability.ID))
 		if err != nil {
-			return trustedIssuer, httpError{status: http.StatusInternalServerError, message: "Was not able to load claims.", rootError: err}
+			return trustedIssuer, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to load claims.", RootError: err}
 		}
 		loadedClaims := []dbModel.Claim{}
 		for _, claim := range capability.Claims {
 			err = repo.Find(ctx, &claim, where.Eq("id", claim.ID))
 			if err != nil {
-				return trustedIssuer, httpError{status: http.StatusInternalServerError, message: "Was not able to load allowed values.", rootError: err}
+				return trustedIssuer, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to load allowed values.", RootError: err}
 			}
 			loadedClaims = append(loadedClaims, claim)
 		}
@@ -132,13 +134,13 @@ func getSqlIssuer(id string) (trustedIssuer dbModel.TrustedIssuer, httpErr httpE
 	return dbIssuer, httpErr
 }
 
-func (MySqlRepo) DeleteIssuer(id string) (httpErr httpError) {
+func (MySqlRepo) DeleteIssuer(id string) (httpErr model.HttpError) {
 	return deleteIssuer(id)
 }
 
-func deleteIssuer(id string) (httpErr httpError) {
+func deleteIssuer(id string) (httpErr model.HttpError) {
 	sqlIssuer, httpErr := getSqlIssuer(id)
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return httpErr
 	}
 
@@ -150,19 +152,19 @@ func deleteIssuer(id string) (httpErr httpError) {
 				for _, allowedValue := range claim.AllowedValues {
 					err := repo.Delete(ctx, &allowedValue)
 					if err != nil {
-						logger.Infof("Was not able to delete allowedValue %s", allowedValue.ID)
+						logger.Infof("Was not able to delete allowedValue %d", allowedValue.ID)
 						return err
 					}
 				}
 				err := repo.Delete(ctx, &claim)
 				if err != nil {
-					logger.Infof("Was not able to delete claim %s", claim.ID)
+					logger.Infof("Was not able to delete claim %d", claim.ID)
 					return err
 				}
 			}
 			err := repo.Delete(ctx, &capability)
 			if err != nil {
-				logger.Infof("Was not able to delete capability %s", capability.ID)
+				logger.Infof("Was not able to delete capability %d", capability.ID)
 				return err
 			}
 		}
@@ -171,15 +173,15 @@ func deleteIssuer(id string) (httpErr httpError) {
 
 	if err != nil {
 		logger.Info(err)
-		return httpError{status: http.StatusInternalServerError, message: fmt.Sprintf("Was not able to delete issuer %s", id), rootError: err}
+		return model.HttpError{Status: http.StatusInternalServerError, Message: fmt.Sprintf("Was not able to delete issuer %s", id), RootError: err}
 	}
 	return httpErr
 }
 
-func (MySqlRepo) PutIssuer(trustedIssuer TrustedIssuer) (httpErr httpError) {
+func (MySqlRepo) PutIssuer(trustedIssuer model.TrustedIssuer) (httpErr model.HttpError) {
 
 	_, httpErr = getSqlIssuer(trustedIssuer.Id)
-	if httpErr != (httpError{}) {
+	if httpErr != (model.HttpError{}) {
 		return httpErr
 	}
 	err := repo.Transaction(context.TODO(), func(ctx context.Context) error {
@@ -188,21 +190,21 @@ func (MySqlRepo) PutIssuer(trustedIssuer TrustedIssuer) (httpErr httpError) {
 		return persistIssuer(updatedIssuer)
 	})
 	if err != nil {
-		return httpError{status: http.StatusInternalServerError, message: "Was not able to update issuer.", rootError: err}
+		return model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to update issuer.", RootError: err}
 	}
 	return httpErr
 }
 
-func (MySqlRepo) GetIssuers(limit int, offset int) (trustedIssuers []TrustedIssuer, httpErr httpError) {
+func (MySqlRepo) GetIssuers(limit int, offset int) (trustedIssuers []model.TrustedIssuer, httpErr model.HttpError) {
 
 	var issuers []dbModel.TrustedIssuer
 	err := repo.FindAll(context.TODO(), &issuers, rel.Limit(limit), rel.Offset(offset))
 	if err != nil {
-		return trustedIssuers, httpError{http.StatusInternalServerError, "Was not able to query for issuers.", err}
+		return trustedIssuers, model.HttpError{http.StatusInternalServerError, "Was not able to query for issuers.", err}
 	}
 	for _, issuer := range issuers {
 		sqlIssuer, httpErr := getSqlIssuer(issuer.ID)
-		if httpErr != (httpError{}) {
+		if httpErr != (model.HttpError{}) {
 			return trustedIssuers, httpErr
 		}
 		trustedIssuers = append(trustedIssuers, fromSqlIssuer(sqlIssuer))
@@ -233,7 +235,7 @@ func persistIssuer(trustedIssuer dbModel.TrustedIssuer) error {
 	})
 }
 
-func toSqlIssuer(trustedIssuer TrustedIssuer) dbModel.TrustedIssuer {
+func toSqlIssuer(trustedIssuer model.TrustedIssuer) dbModel.TrustedIssuer {
 	sqlIssuer := dbModel.TrustedIssuer{ID: trustedIssuer.Id}
 	capabilities := []dbModel.Capability{}
 	for _, capability := range *trustedIssuer.Capabilities {
@@ -243,7 +245,7 @@ func toSqlIssuer(trustedIssuer TrustedIssuer) dbModel.TrustedIssuer {
 	return sqlIssuer
 }
 
-func toSqlCapability(capability Capability) dbModel.Capability {
+func toSqlCapability(capability model.Capability) dbModel.Capability {
 	sqlCapability := dbModel.Capability{ValidFrom: capability.ValidFor.From, ValidTo: capability.ValidFor.To, CredentialsType: capability.CredentialsType}
 	claims := []dbModel.Claim{}
 	for _, claim := range *capability.Claims {
@@ -253,7 +255,7 @@ func toSqlCapability(capability Capability) dbModel.Capability {
 	return sqlCapability
 }
 
-func toSqlClaim(claim Claim) dbModel.Claim {
+func toSqlClaim(claim model.Claim) dbModel.Claim {
 	sqlClaim := dbModel.Claim{Name: claim.Name}
 	allowedValues := []dbModel.AllowedValue{}
 	for _, value := range claim.AllowedValues {
@@ -263,9 +265,9 @@ func toSqlClaim(claim Claim) dbModel.Claim {
 	return sqlClaim
 }
 
-func fromSqlIssuer(sqlIssuer dbModel.TrustedIssuer) TrustedIssuer {
-	trustedIssuer := TrustedIssuer{Id: sqlIssuer.ID}
-	capabilities := []Capability{}
+func fromSqlIssuer(sqlIssuer dbModel.TrustedIssuer) model.TrustedIssuer {
+	trustedIssuer := model.TrustedIssuer{Id: sqlIssuer.ID}
+	capabilities := []model.Capability{}
 	for _, capability := range sqlIssuer.Capabilities {
 		capabilities = append(capabilities, fromSqlCapability(capability))
 	}
@@ -273,10 +275,10 @@ func fromSqlIssuer(sqlIssuer dbModel.TrustedIssuer) TrustedIssuer {
 	return trustedIssuer
 }
 
-func fromSqlCapability(sqlCapability dbModel.Capability) Capability {
-	validFor := &TimeRange{From: sqlCapability.ValidFrom, To: sqlCapability.ValidTo}
-	capability := Capability{ValidFor: validFor, CredentialsType: sqlCapability.CredentialsType}
-	claims := []Claim{}
+func fromSqlCapability(sqlCapability dbModel.Capability) model.Capability {
+	validFor := &model.TimeRange{From: sqlCapability.ValidFrom, To: sqlCapability.ValidTo}
+	capability := model.Capability{ValidFor: validFor, CredentialsType: sqlCapability.CredentialsType}
+	claims := []model.Claim{}
 	for _, claim := range sqlCapability.Claims {
 		claims = append(claims, fromSqlClaim(claim))
 	}
@@ -284,8 +286,8 @@ func fromSqlCapability(sqlCapability dbModel.Capability) Capability {
 	return capability
 }
 
-func fromSqlClaim(sqlClaim dbModel.Claim) Claim {
-	claim := Claim{Name: sqlClaim.Name}
+func fromSqlClaim(sqlClaim dbModel.Claim) model.Claim {
+	claim := model.Claim{Name: sqlClaim.Name}
 	allowedValues := []string{}
 	for _, allowedValue := range sqlClaim.AllowedValues {
 		allowedValues = append(allowedValues, allowedValue.AllowedValue)
