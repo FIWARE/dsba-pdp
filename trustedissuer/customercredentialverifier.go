@@ -8,6 +8,8 @@ import (
 	"github.com/wistefan/dsba-pdp/model"
 )
 
+const ROLES_KEY = "roles"
+
 var logger = logging.Log()
 var providerId = config.ProviderId()
 
