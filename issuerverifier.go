@@ -62,18 +62,32 @@ func evaluateCapability(capability Capability, vc DSBAVerifiableCredential) (dec
 	}
 
 	if capability.CredentialsType == "CustomerCredential" {
-		logger.Debugf("Verify customer credential", prettyPrintObject(vc.CredentialSubject))
-		return CustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject)
-	} else if capability.CredentialsType == "IShareCustomerCredential" {
 
-		// not properly implemented yet
-		logger.Debugf("Verify ishare customer credential.")
-		return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
+		if isIShareVC(vc.CredentialSubject) {
+
+			logger.Debugf("Verify ishare customer credential.")
+			return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
+		} else {
+			logger.Debugf("Verify customer credential", prettyPrintObject(vc.CredentialSubject))
+			return CustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject)
+		}
 	} else {
 		logger.Debugf("Type %s is not supported.", capability.CredentialsType)
 	}
 	logger.Debug("Successfully verified vc.")
 	return Decision{true, "No special checks required for the given type of credential."}, httpErr
+}
+
+func isIShareVC(credentialSubject CredentialSubject) bool {
+	if credentialSubject.IShareCredentialsSubject != nil {
+		return true
+	}
+	for _, role := range credentialSubject.Roles {
+		if role.Provider != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func contains(s []string, e string) bool {
