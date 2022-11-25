@@ -2,7 +2,7 @@ package migrations
 
 import "github.com/go-rel/rel"
 
-func MigrateCreateAllowedValues(schema *rel.Schema) {
+func MigrateMigrateAllowedValues(schema *rel.Schema) {
 	schema.CreateTable("allowed_values", func(t *rel.Table) {
 		t.ID("id")
 		t.String("allowed_value")
@@ -11,6 +11,6 @@ func MigrateCreateAllowedValues(schema *rel.Schema) {
 	})
 }
 
-func RollbackCreateAllowedValues(schema *rel.Schema) {
+func RollbackMigrateAllowedValues(schema *rel.Schema) {
 	schema.DropTable("allowed_values")
 }

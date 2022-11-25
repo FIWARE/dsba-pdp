@@ -53,8 +53,17 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 }
 
 func isRoleAllowed(roleNames []string, roleClaim model.Claim) (decision model.Decision) {
+	allowedRoles := []string{}
+	for _, allowedValue := range roleClaim.AllowedValues {
+		if allowedValue.String != "" {
+			allowedRoles = append(allowedRoles, allowedValue.String)
+		}
+		if allowedValue.RoleValue != (model.RoleValue{}) && allowedValue.RoleValue.Name != nil {
+			allowedRoles = append(allowedRoles, *allowedValue.RoleValue.Name...)
+		}
+	}
 	for _, roleName := range roleNames {
-		if !contains(roleClaim.AllowedValues, roleName) {
+		if !contains(allowedRoles, roleName) {
 			return model.Decision{false, fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", roleName, logging.PrettyPrintObject(roleClaim))}
 
 		}

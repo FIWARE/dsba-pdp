@@ -259,7 +259,12 @@ func toSqlClaim(claim model.Claim) dbModel.Claim {
 	sqlClaim := dbModel.Claim{Name: claim.Name}
 	allowedValues := []dbModel.AllowedValue{}
 	for _, value := range claim.AllowedValues {
-		allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedValue: value})
+		if value.String != "" {
+			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedString: value.String})
+		}
+		if value.RoleValue != (model.RoleValue{}) {
+			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedRolevalue: dbModel.AllowedRole{Name: *value.RoleValue.Name, ProviderId: value.RoleValue.ProviderId}})
+		}
 	}
 	sqlClaim.AllowedValues = allowedValues
 	return sqlClaim
@@ -288,9 +293,14 @@ func fromSqlCapability(sqlCapability dbModel.Capability) model.Capability {
 
 func fromSqlClaim(sqlClaim dbModel.Claim) model.Claim {
 	claim := model.Claim{Name: sqlClaim.Name}
-	allowedValues := []string{}
+	allowedValues := []model.AllowedValue{}
 	for _, allowedValue := range sqlClaim.AllowedValues {
-		allowedValues = append(allowedValues, allowedValue.AllowedValue)
+		if allowedValue.AllowedString != "" {
+			allowedValues = append(allowedValues, model.AllowedValue{String: allowedValue.AllowedString})
+		}
+		if allowedValue.AllowedRolevalue.ProviderId != "" {
+			allowedValues = append(allowedValues, model.AllowedValue{RoleValue: model.RoleValue{Name: &allowedValue.AllowedRolevalue.Name, ProviderId: allowedValue.AllowedRolevalue.ProviderId}})
+		}
 	}
 	claim.AllowedValues = allowedValues
 	return claim

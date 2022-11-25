@@ -83,6 +83,15 @@ func isIShareVC(credentialSubject model.CredentialSubject) bool {
 	return false
 }
 
+func containsAll(s []string, e []string) bool {
+	for _, a := range e {
+		if !contains(s, a) {
+			return false
+		}
+	}
+	return true
+}
+
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {

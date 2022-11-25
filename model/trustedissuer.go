@@ -18,8 +18,8 @@ type TimeRange struct {
 }
 
 type Claim struct {
-	Name          string   `json:"name"`
-	AllowedValues []string `json:"AllowedValues"`
+	Name          string         `json:"name"`
+	AllowedValues []AllowedValue `json:"AllowedValues"`
 }
 
 type ProblemDetails struct {
@@ -28,4 +28,16 @@ type ProblemDetails struct {
 	Status   int    `json:"status"`
 	Detail   string `json:"detail,omitempty"`
 	Instance string `json:"instance,omitempty"`
+}
+
+type AllowedValue struct {
+	String    string
+	Number    int
+	Boolean   bool
+	RoleValue RoleValue
+}
+
+type RoleValue struct {
+	Name       *[]string `json:"name,omitempty"`
+	ProviderId string    `json:"providerId,omitempty"`
 }
