@@ -23,13 +23,14 @@ func init() {
 	mySql := os.Getenv("MYSQL_HOST")
 
 	if mySql != "" {
-		issuerRepo = MySqlRepo{}
+		issuerRepo = NewSqlRepository(GetMySqlRepository())
 		logger.Infof("Connected to mysql as storage backend.")
 	} else {
 		logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
-		issuerRepo = InMemoryRepo{}
+		issuerRepo = NewInmemoryRepo()
 	}
 }
-func IssuerRepo() IssuerRepository {
-	return issuerRepo
+
+func IssuerRepo() *IssuerRepository {
+	return &issuerRepo
 }

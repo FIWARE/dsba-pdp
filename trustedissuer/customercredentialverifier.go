@@ -11,7 +11,7 @@ import (
 const ROLES_KEY = "roles"
 
 var logger = logging.Log()
-var providerId = config.ProviderId()
+var envConfig config.Config = config.EnvConfig{}
 
 type CustomerCredentialVerifier struct{}
 
@@ -20,7 +20,7 @@ func (CustomerCredentialVerifier) Verify(claims *[]model.Claim, credentialSubjec
 	// check that no addtional information is included
 
 	if credentialSubject.IShareCredentialsSubject != nil {
-		return model.Decision{false, fmt.Sprintf("The credential %s includes forbidden claims.", logging.PrettyPrintObject(*credentialSubject))}, err
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("The credential %s includes forbidden claims.", logging.PrettyPrintObject(*credentialSubject))}, err
 	}
 	return CheckRoles(claims, credentialSubject)
 }
@@ -34,22 +34,22 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 		}
 	}
 	if roleClaim.Name == "" {
-		return model.Decision{true, "No restrictions for roles exist."}, err
+		return model.Decision{Decision: true, Reason: "No restrictions for roles exist."}, err
 	}
 
 	if len(roleClaim.AllowedValues) == 0 {
-		return model.Decision{false, fmt.Sprintf("Claim %s does not allow any role assignment.", logging.PrettyPrintObject(roleClaim))}, err
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any role assignment.", logging.PrettyPrintObject(roleClaim))}, err
 	}
 
 	for _, role := range credentialSubject.Roles {
-		if role.Target == providerId {
+		if role.Target == envConfig.ProviderId() {
 			descision = isRoleAllowed(role.Name, roleClaim)
 			if !descision.Decision {
 				return descision, err
 			}
 		}
 	}
-	return model.Decision{true, "Role claims allowed."}, err
+	return model.Decision{Decision: true, Reason: "Role claims allowed."}, err
 }
 
 func isRoleAllowed(roleNames []string, roleClaim model.Claim) (decision model.Decision) {
@@ -64,9 +64,9 @@ func isRoleAllowed(roleNames []string, roleClaim model.Claim) (decision model.De
 	}
 	for _, roleName := range roleNames {
 		if !contains(allowedRoles, roleName) {
-			return model.Decision{false, fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", roleName, logging.PrettyPrintObject(roleClaim))}
+			return model.Decision{Decision: false, Reason: fmt.Sprintf("Role %s is not coverd by the roles-claim capability %s.", roleName, logging.PrettyPrintObject(roleClaim))}
 
 		}
 	}
-	return model.Decision{true, "Roles allowed."}
+	return model.Decision{Decision: true, Reason: "Roles allowed."}
 }

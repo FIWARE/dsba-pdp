@@ -5,16 +5,22 @@ go 1.17
 require golang.org/x/oauth2 v0.1.0
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-rel/cmd v0.40.0 // indirect
 	github.com/go-rel/mysql v0.9.1 // indirect
 	github.com/go-rel/rel v0.39.0 // indirect
+	github.com/go-rel/reltest v0.11.0 // indirect
 	github.com/go-rel/sql v0.13.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/proullon/ramsql v0.0.0-20220719091513-bf3c20043516 // indirect
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e // indirect
+	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (

@@ -10,13 +10,16 @@ var providerId string
 
 var logger = logging.Log()
 
-func ProviderId() string {
-	return providerId
+type Config interface {
+	ProviderId() string
 }
 
-func init() {
+type EnvConfig struct{}
+
+func (EnvConfig) ProviderId() string {
 	providerId = os.Getenv("PROVIDER_ID")
 	if providerId == "" {
 		logger.Warnf("No provider id configured, use an empty provider.")
 	}
+	return providerId
 }

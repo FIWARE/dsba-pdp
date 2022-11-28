@@ -26,6 +26,26 @@ import (
 var logger = logging.Log()
 var globalHttpClient = client.HttpClient()
 
+type AuthorizationRegistry interface {
+	GetPDPRegistry() *model.AuthorizationRegistry
+	GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError)
+}
+
+type IShareAuthorizationRegistry struct {
+	/**
+	* The RSA key for signing accesstokens
+	 */
+	signingKey *rsa.PrivateKey
+	/**
+	 * Array of the encoded certificates, formatted according to the iShare spec.
+	 */
+	certificateArray []string
+	/**
+	* Authorization registry of the PDP, e.g. where should we get "our" policies from.
+	 */
+	pdpRegistry model.AuthorizationRegistry
+}
+
 /**
 * Expiry of the accesstoken. Has to be 30s according to the iShare specification.
  */
@@ -42,16 +62,6 @@ var ishareFolderAccessor folderAccessor = folderAccessor{getFolderContent}
 var ishareFileAccessor fileAccessor = fileAccessor{writeFile, readFile}
 
 /**
-* Array of the encoded certificates, formatted according to the iShare spec.
- */
-var certificateArray []string
-
-/**
-* The RSA key for signing accesstokens
- */
-var signingKey *rsa.PrivateKey
-
-/**
 * Client id of the pdp in the iShare context. Will be used when requesting the authorization registry.
  */
 var iShareClientId string
@@ -60,18 +70,14 @@ var defaultTokenPath string = "/connect/token"
 var defaultDelegationPath string = "/delegation"
 
 /**
-* Authorization registry of the PDP, e.g. where should we get "our" policies from.
- */
-var PDPAuthorizationRegistry model.AuthorizationRegistry
-
-/**
 * Init reades and decodes the key and certificate to be used when contacting the AR
  */
-func init() {
+func NewIShareAuthorizationRegistry() (registry *IShareAuthorizationRegistry) {
 	ishareEnabled, err := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
 
 	if err != nil || !ishareEnabled {
-		logger.Info("iShare is not enabled.")
+		logger.Fatalf("iShare is not enabled.")
+		return
 	} else {
 
 		certificatePath := os.Getenv("ISHARE_CERTIFICATE_PATH")
@@ -95,47 +101,52 @@ func init() {
 			logger.Fatal("No client id for the pdp was provided.")
 		}
 
-		PDPAuthorizationRegistry = model.AuthorizationRegistry{}
+		pdpAuthorizationRegistry := model.AuthorizationRegistry{}
 
 		if iShareARUrl == "" {
 			logger.Fatal("No URL for the authorization registry was provided.")
 		}
-		PDPAuthorizationRegistry.Host = iShareARUrl
+		pdpAuthorizationRegistry.Host = iShareARUrl
 
 		if iShareARId == "" {
 			logger.Fatal("No id for the authorization registry was provided.")
 		}
-		PDPAuthorizationRegistry.Id = iShareARId
+		pdpAuthorizationRegistry.Id = iShareARId
 
 		if delegationPathEnv != "" {
-			PDPAuthorizationRegistry.DelegationPath = delegationPathEnv
+			pdpAuthorizationRegistry.DelegationPath = delegationPathEnv
 		} else {
-			PDPAuthorizationRegistry.DelegationPath = defaultDelegationPath
+			pdpAuthorizationRegistry.DelegationPath = defaultDelegationPath
 		}
-		logger.Infof("Will use the delegtion address %s.", PDPAuthorizationRegistry.GetDelegationAddress())
+		logger.Infof("Will use the delegtion address %s.", pdpAuthorizationRegistry.GetDelegationAddress())
 
 		if tokenPathEnv != "" {
-			PDPAuthorizationRegistry.TokenPath = tokenPathEnv
+			pdpAuthorizationRegistry.TokenPath = tokenPathEnv
 		} else {
-			PDPAuthorizationRegistry.TokenPath = defaultTokenPath
+			pdpAuthorizationRegistry.TokenPath = defaultTokenPath
 		}
-		logger.Infof("Will use the token address %s.", PDPAuthorizationRegistry.GetTokenAddress())
+		logger.Infof("Will use the token address %s.", pdpAuthorizationRegistry.GetTokenAddress())
 
-		signingKey, err = getSigningKey(keyPath)
+		signingKey, err := getSigningKey(keyPath)
 		if err != nil {
 			logger.Fatalf("Was not able to read the rsa private key from %s, err: %v", keyPath, err)
 		}
 
-		certificateArray, err = getCertificateArray(certificatePath)
+		certificateArray, err := getCertificateArray(certificatePath)
 		if err != nil {
 			logger.Fatalf("Was not able to read the certificate from %s, err: %v", certificatePath, err)
 		}
+		return &IShareAuthorizationRegistry{signingKey: signingKey, certificateArray: certificateArray, pdpRegistry: pdpAuthorizationRegistry}
 	}
 }
 
-func getDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError) {
+func (iShareAuthRegistry IShareAuthorizationRegistry) GetPDPRegistry() *model.AuthorizationRegistry {
+	return &iShareAuthRegistry.pdpRegistry
+}
 
-	accessToken, httpErr := getTokenFromAR(authorizationRegistry)
+func (iShareAuthRegistry IShareAuthorizationRegistry) GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError) {
+
+	accessToken, httpErr := iShareAuthRegistry.getTokenFromAR(authorizationRegistry)
 
 	if httpErr != (model.HttpError{}) {
 		logger.Warn("Was not able to get an access token.", httpErr)
@@ -144,10 +155,10 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 
 	logger.Debugf("Token: %s", accessToken)
 
-	delegationRequestBody := model.DelegationRequestWrapper{&model.DelegationRequest{PolicyIssuer: issuer, Target: &model.DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []*model.PolicySet{{Policies: *requiredPolicies}}}}
+	delegationRequestBody := model.DelegationRequestWrapper{DelegationRequest: &model.DelegationRequest{PolicyIssuer: issuer, Target: &model.DelegationTarget{AccessSubject: delegationTarget}, PolicySets: []*model.PolicySet{{Policies: *requiredPolicies}}}}
 	jsonBody, err := json.Marshal(delegationRequestBody)
 	if err != nil {
-		return delegeationEvidence, model.HttpError{http.StatusInternalServerError, "Was not able to create a delegation request.", err}
+		return delegeationEvidence, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to create a delegation request.", RootError: err}
 	}
 
 	logger.Debugf("Delegation request: %s", jsonBody)
@@ -156,7 +167,7 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	policyRequest, err := http.NewRequest("POST", authorizationRegistry.GetDelegationAddress(), bytes.NewReader(jsonBody))
 	if err != nil {
 		logger.Debug("Was not able to create the delegation request.")
-		return delegeationEvidence, model.HttpError{http.StatusInternalServerError, "Was not able to create delegation request.", err}
+		return delegeationEvidence, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to create delegation request.", RootError: err}
 
 	}
 
@@ -166,19 +177,19 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	delegationResponse, err := globalHttpClient.Do(policyRequest)
 	if err != nil {
 		logger.Debugf("Was not able to retrieve policies from %s, error is %v", authorizationRegistry.GetDelegationAddress(), err)
-		return delegeationEvidence, model.HttpError{http.StatusBadGateway, "Was not able to get a delegation response.", err}
+		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to get a delegation response.", RootError: err}
 	}
 
 	if delegationResponse.StatusCode != 200 && delegationResponse.StatusCode == 404 {
 		logger.Debugf("No policies found for issuer %s and subject %s at %s.", issuer, delegationTarget, authorizationRegistry.GetDelegationAddress())
-		return delegeationEvidence, model.HttpError{http.StatusForbidden, fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), nil}
+		return delegeationEvidence, model.HttpError{Status: http.StatusForbidden, Message: fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), RootError: nil}
 	} else if delegationResponse.StatusCode != 200 {
 		logger.Debugf("Received a %d from the ar.", delegationResponse.StatusCode)
-		return delegeationEvidence, model.HttpError{http.StatusBadGateway, fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), nil}
+		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), RootError: nil}
 	}
 	if delegationResponse.Body == nil {
 		logger.Debug("Received an empty body from the ar.")
-		return delegeationEvidence, model.HttpError{http.StatusBadGateway, "Did not receive a response body from the ar.", nil}
+		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: "Did not receive a response body from the ar.", RootError: nil}
 	}
 
 	// decode and return
@@ -186,7 +197,7 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	err = json.NewDecoder(delegationResponse.Body).Decode(&delegationResponseObject)
 	if err != nil {
 		logger.Debugf("Was not able to decode the response body. Error: %v", err)
-		return delegeationEvidence, model.HttpError{http.StatusBadGateway, fmt.Sprintf("Received an invalid body from the ar: %s", delegationResponse.Body), err}
+		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Received an invalid body from the ar: %s", delegationResponse.Body), RootError: err}
 	}
 
 	parsedToken, httpErr := parseIShareToken(delegationResponseObject.DelegationToken)
@@ -199,11 +210,11 @@ func getDelegationEvidence(issuer string, delegationTarget string, requiredPolic
 	return &parsedToken.DelegationEvidence, httpErr
 }
 
-func getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
+func (iShareAuthRegistry IShareAuthorizationRegistry) getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
 
-	signedToken, err := generateSignedToken(authorizationRegistry.Id, iShareClientId)
+	signedToken, err := iShareAuthRegistry.generateSignedToken(authorizationRegistry.Id, iShareClientId)
 	if err != nil {
-		httpErr = model.HttpError{http.StatusInternalServerError, "Was not able to generate a signed token.", err}
+		httpErr = model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to generate a signed token.", RootError: err}
 		return
 	}
 
@@ -220,13 +231,13 @@ func getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessT
 	tokenResponse, err := globalHttpClient.PostForm(authorizationRegistry.GetTokenAddress(), requestData)
 	if err != nil {
 		logger.Debugf("Failed to get token response from ar at: %s", authorizationRegistry.GetTokenAddress())
-		return accessToken, model.HttpError{http.StatusBadGateway, "Was not able to get the token from the idp.", err}
+		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to get the token from the idp.", RootError: err}
 
 	}
 
 	if tokenResponse.Body == nil {
 		logger.Debugf("Failed to decode token response from ar at: %s", authorizationRegistry.GetTokenAddress())
-		return accessToken, model.HttpError{http.StatusBadGateway, "Did not receive a valid body from the idp.", err}
+		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: "Did not receive a valid body from the idp.", RootError: err}
 
 	}
 
@@ -234,18 +245,18 @@ func getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessT
 	var decodedResponse map[string]interface{}
 	err = json.NewDecoder(tokenResponse.Body).Decode(&decodedResponse)
 	if err != nil {
-		return accessToken, model.HttpError{http.StatusBadGateway, "Was not able to decode idp response.", err}
+		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to decode idp response.", RootError: err}
 
 	}
 
 	if decodedResponse == nil || decodedResponse["access_token"] == nil {
-		return accessToken, model.HttpError{http.StatusBadGateway, fmt.Sprintf("Did not receive an access token from the idp. Resp: %v", decodedResponse), err}
+		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Did not receive an access token from the idp. Resp: %v", decodedResponse), RootError: err}
 	}
 
 	return decodedResponse["access_token"].(string), httpErr
 }
 
-func generateSignedToken(arId string, clientId string) (signedToken string, err error) {
+func (iShareAuthRegistry IShareAuthorizationRegistry) generateSignedToken(arId string, clientId string) (signedToken string, err error) {
 
 	randomUuid, err := uuid.NewRandom()
 	if err != nil {
@@ -265,10 +276,10 @@ func generateSignedToken(arId string, clientId string) (signedToken string, err 
 	})
 
 	// set the certificate(s) to the header
-	jwtToken.Header["x5c"] = certificateArray
+	jwtToken.Header["x5c"] = iShareAuthRegistry.certificateArray
 
 	// sign the token
-	signedToken, err = jwtToken.SignedString(signingKey)
+	signedToken, err = jwtToken.SignedString(iShareAuthRegistry.signingKey)
 	if err != nil {
 		logger.Warn("Was not able to sign the token.", err)
 		return

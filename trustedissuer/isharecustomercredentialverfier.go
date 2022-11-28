@@ -8,7 +8,6 @@ import (
 )
 
 const AR_KEY = "authorizationRegistry"
-const ROLES_PROVIDER_KEY = "roles.provider"
 
 type IShareCustomerCredentialVerifier struct{}
 
@@ -44,20 +43,20 @@ func (IShareCustomerCredentialVerifier) Verify(claims *[]model.Claim, credential
 	}
 
 	logger.Debugf("Role provider allowed, message: %s.", decision.Reason)
-	return model.Decision{true, "Subject is allowed by the iShare verifier."}, httpErr
+	return model.Decision{Decision: true, Reason: "Subject is allowed by the iShare verifier."}, httpErr
 }
 
 func checkRoles(roleClaim model.Claim, roles []model.Role) (decision model.Decision, httpErr model.HttpError) {
 	if roleClaim.Name == "" {
-		return model.Decision{true, "No restrictions for the roles  exist."}, httpErr
+		return model.Decision{Decision: true, Reason: "No restrictions for the roles  exist."}, httpErr
 	}
 
 	if len(roleClaim.AllowedValues) == 0 {
-		return model.Decision{false, fmt.Sprintf("Claim %s does not allow any definition of roles.", logging.PrettyPrintObject(roleClaim))}, httpErr
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any definition of roles.", logging.PrettyPrintObject(roleClaim))}, httpErr
 	}
 
 	generalAllowedRoles := []string{}
-	allowedByProvider := map[string][]string{}
+	allowedByProvider := map[string]*[]string{}
 
 	for _, allowedRole := range roleClaim.AllowedValues {
 		if allowedRole.String != "" {
@@ -66,9 +65,11 @@ func checkRoles(roleClaim model.Claim, roles []model.Role) (decision model.Decis
 		if allowedRole.RoleValue != (model.RoleValue{}) {
 			allowedRoles, ok := allowedByProvider[allowedRole.RoleValue.ProviderId]
 			if ok {
-				allowedRoles = append(allowedRoles, *allowedRole.RoleValue.Name...)
+				*allowedRoles = append(*allowedRoles, *allowedRole.RoleValue.Name...)
 			} else {
-				allowedRoles = *allowedRole.RoleValue.Name
+				if allowedRole.RoleValue.Name != nil {
+					allowedRoles = allowedRole.RoleValue.Name
+				}
 			}
 			allowedByProvider[allowedRole.RoleValue.ProviderId] = allowedRoles
 		}
@@ -97,26 +98,29 @@ func checkRoles(roleClaim model.Claim, roles []model.Role) (decision model.Decis
 			return decision, httpErr
 		}
 	}
-	return model.Decision{false, fmt.Sprintf("Defined role-providers %s not covered by the role-provider claim %s.", logging.PrettyPrintObject(roles), logging.PrettyPrintObject(roleClaim))}, httpErr
+	return model.Decision{Decision: false, Reason: fmt.Sprintf("Defined role-providers %s not covered by the role-provider claim %s.", logging.PrettyPrintObject(roles), logging.PrettyPrintObject(roleClaim))}, httpErr
 
 }
 
-func checkAllowedByProvider(allowedByProvider map[string][]string, providerId string, roleNames []string) (decision model.Decision, httpErr model.HttpError) {
+func checkAllowedByProvider(allowedByProvider map[string]*[]string, providerId string, roleNames []string) (decision model.Decision, httpErr model.HttpError) {
 	allowedRoles, ok := allowedByProvider[providerId]
 	if !ok {
-		return model.Decision{false, fmt.Sprintf("No entry for provider %s in %v found.", providerId, allowedByProvider)}, httpErr
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("No entry for provider %s in %v found.", providerId, allowedByProvider)}, httpErr
 	}
-	if containsAll(allowedRoles, roleNames) {
-		return model.Decision{true, fmt.Sprintf("Role %s allowed for provider %s.", roleNames, providerId)}, httpErr
+	if allowedRoles == nil {
+		return model.Decision{Decision: true, Reason: fmt.Sprintf("No role restrictions for provider %s exist.", providerId)}, httpErr
 	}
-	return model.Decision{false, fmt.Sprintf("Role %s not allowed for provider %s.", roleNames, providerId)}, httpErr
+	if containsAll(*allowedRoles, roleNames) {
+		return model.Decision{Decision: true, Reason: fmt.Sprintf("Role %s allowed for provider %s.", roleNames, providerId)}, httpErr
+	}
+	return model.Decision{Decision: false, Reason: fmt.Sprintf("Role %s not allowed for provider %s.", roleNames, providerId)}, httpErr
 }
 
 func checkGeneralAllowance(allowedRoles []string, role model.Role) (decision model.Decision, httpErr model.HttpError) {
 	if containsAll(allowedRoles, role.Name) {
-		return model.Decision{true, "Role is allowed."}, httpErr
+		return model.Decision{Decision: true, Reason: "Role is allowed."}, httpErr
 	}
-	return model.Decision{false, fmt.Sprintf("Role %s is not generally allowed by %v.", logging.PrettyPrintObject(role), allowedRoles)}, httpErr
+	return model.Decision{Decision: false, Reason: fmt.Sprintf("Role %s is not generally allowed by %v.", logging.PrettyPrintObject(role), allowedRoles)}, httpErr
 }
 
 func checkAuthorizationRegistries(arClaim model.Claim, authorizationRegistries *map[string]model.AuthorizationRegistry) (decision model.Decision, httpErr model.HttpError) {
@@ -124,16 +128,16 @@ func checkAuthorizationRegistries(arClaim model.Claim, authorizationRegistries *
 	// check allowed ar's
 	if authorizationRegistries == nil {
 		logger.Debugf("No dedicated ar defined, allow it.")
-		return model.Decision{true, "VC does not define its own AR, all checks are fine."}, httpErr
+		return model.Decision{Decision: true, Reason: "VC does not define its own AR, all checks are fine."}, httpErr
 
 	}
 
 	if arClaim.Name == "" {
-		return model.Decision{true, "No restrictions for the ar exist."}, httpErr
+		return model.Decision{Decision: true, Reason: "No restrictions for the ar exist."}, httpErr
 	}
 
 	if len(arClaim.AllowedValues) == 0 {
-		return model.Decision{false, fmt.Sprintf("Claim %s does not allow any definition of an ar.", logging.PrettyPrintObject(arClaim))}, httpErr
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any definition of an ar.", logging.PrettyPrintObject(arClaim))}, httpErr
 	}
 
 	allowedRegistries := []string{}
@@ -143,9 +147,9 @@ func checkAuthorizationRegistries(arClaim model.Claim, authorizationRegistries *
 
 	for registry := range *authorizationRegistries {
 		if !contains(allowedRegistries, registry) {
-			return model.Decision{false, fmt.Sprintf("Defined AR %s not covered by the ar-claim %s", registry, logging.PrettyPrintObject(arClaim))}, httpErr
+			return model.Decision{Decision: false, Reason: fmt.Sprintf("Defined AR %s not covered by the ar-claim %s", registry, logging.PrettyPrintObject(arClaim))}, httpErr
 		}
 	}
 
-	return model.Decision{true, "Defined ARs allowed."}, httpErr
+	return model.Decision{Decision: true, Reason: "Defined ARs allowed."}, httpErr
 }

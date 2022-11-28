@@ -19,11 +19,11 @@ func TestCheckRoles(t *testing.T) {
 	tests := []test{
 		{"Allow subjects if not claim is configured.", []model.Claim{}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{}}, true, model.HttpError{}},
 		{"Allow subjects if only other claims are configured.", []model.Claim{{Name: "OTHER_CLAIM", AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{}}, true, model.HttpError{}},
-		//{"Allow subjects if claim allows the assigned role.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{"CUSTOMER"}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, true, model.HttpError{}},
-		//{"Allow if more roles are allowed.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []string{"CUSTOMER", "EMPLOYEE"}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"EMPLOYEE"}}}}, true, model.HttpError{}},
-		//{"Reject if claim has empty allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []string{}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
-		//{"Reject if claim has different role allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []string{"EMPLOYEE"}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
-		//{"Reject if subject has additional roles.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []string{"EMPLOYEE"}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER", "EMPLOYEE"}}}}, false, model.HttpError{}},
+		{"Allow subjects if claim allows the assigned role.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, true, model.HttpError{}},
+		{"Allow if more roles are allowed.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}, {String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"EMPLOYEE"}}}}, true, model.HttpError{}},
+		{"Reject if claim has empty allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
+		{"Reject if claim has different role allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
+		{"Reject if subject has additional roles.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER", "EMPLOYEE"}}}}, false, model.HttpError{}},
 	}
 
 	for _, tc := range tests {

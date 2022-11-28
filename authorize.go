@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/wistefan/dsba-pdp/config"
 	"github.com/wistefan/dsba-pdp/decision"
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
@@ -23,7 +24,7 @@ func init() {
 
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare is enabled.")
-		decider = decision.IShareDecider{}
+		decider = decision.NewIShareDecider(*decision.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	}
 }
 
