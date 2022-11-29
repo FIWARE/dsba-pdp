@@ -33,7 +33,8 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 	// we need to use this as request target to check request towards ourself
 	requestTarget := iShareClientId
 	verifiableCredential := token.VerifiableCredential
-	logger.Debugf("Received VC: %s", logging.PrettyPrintObject(verifiableCredential))
+	logger.Debugf("Received VC: %s,", logging.PrettyPrintObject(verifiableCredential))
+	logger.Debugf("Creating decision for request %s - %s.", requestType, originalAddress)
 	roleIssuer := verifiableCredential.Issuer
 	if roleIssuer == "" {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", logging.PrettyPrintObject(verifiableCredential))}, httpErr
@@ -158,9 +159,10 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 	}
 
 	// if not, it has to contain an Entity ID
-	pathParts := strings.Split(plainPath, "/")
+	pathParts := removeEmptyStrings(strings.Split(plainPath, "/"))
 	entityId := pathParts[0]
 
+	logger.Debugf("The splited path from %s is %v.", originalAddress, pathParts)
 	// only the entity id
 	if len(pathParts) == 1 {
 		return buildRequiredPoliciesForEntity(entityId, requestType, requestBody)
@@ -243,7 +245,7 @@ func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestB
 		Identifiers: []string{entityId},
 		Attributes:  getAttributesFromBody(requestBody)}
 
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
@@ -278,7 +280,7 @@ func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, r
 		return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("%s is not supported on /entities.", requestType), RootError: nil}
 	}
 
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
@@ -427,6 +429,16 @@ func doRulesPermitRequest(rules *[]model.Rule) bool {
 	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*rules))
 	return true
 
+}
+
+func removeEmptyStrings(stringArray []string) []string {
+	cleanedString := []string{}
+	for _, s := range stringArray {
+		if s != "" {
+			cleanedString = append(cleanedString, s)
+		}
+	}
+	return cleanedString
 }
 
 type IShareDecider struct {
