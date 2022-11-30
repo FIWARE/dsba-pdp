@@ -19,6 +19,7 @@ jobs:
         run: |
           go get github.com/modocache/gover
           go get github.com/mattn/goveralls
+          go get github.com/go-playground/validator/v10
 
       - name: Go test
         run: |
