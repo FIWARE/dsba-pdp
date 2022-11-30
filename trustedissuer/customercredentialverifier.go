@@ -15,7 +15,7 @@ var envConfig config.Config = config.EnvConfig{}
 
 type CustomerCredentialVerifier struct{}
 
-func (CustomerCredentialVerifier) Verify(claims *[]model.Claim, credentialSubject *model.CredentialSubject) (descision model.Decision, err model.HttpError) {
+func (CustomerCredentialVerifier) Verify(claims *[]model.Claim, credentialSubject *model.CredentialSubject, issuerId string) (descision model.Decision, err model.HttpError) {
 
 	// check that no addtional information is included
 

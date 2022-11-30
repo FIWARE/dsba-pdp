@@ -8,7 +8,7 @@ import (
 	"github.com/wistefan/dsba-pdp/model"
 )
 
-func TestVerify(t *testing.T) {
+func TestIShareVerify(t *testing.T) {
 
 	type test struct {
 		testName         string

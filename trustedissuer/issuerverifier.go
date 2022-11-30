@@ -2,22 +2,39 @@ package trustedissuer
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/wistefan/dsba-pdp/decision"
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
 )
 
+var clock decision.Clock = &decision.RealClock{}
+
+type IssuerVerifier interface {
+	Verify(claims *[]model.Claim, credentialSubject *model.CredentialSubject, issuerId string) (decision model.Decision, httpErr model.HttpError)
+}
+
+var iShareVerifier IssuerVerifier = IShareCustomerCredentialVerifier{}
+var customerCredentialsVerifier IssuerVerifier = CustomerCredentialVerifier{}
+
 func Verify(vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
 	issuerId := vc.Issuer
 	if issuerId == "" {
-		return model.Decision{false, fmt.Sprintf("VC %s does not contain a valid issuer id.", logging.PrettyPrintObject(vc))}, httpErr
+		return model.Decision{Decision: false, Reason: fmt.Sprintf("VC %s does not contain a valid issuer id.", logging.PrettyPrintObject(vc))}, httpErr
 	}
 	issuer, httpErr := issuerRepo.GetIssuer(issuerId)
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to retrieve issuer from repo for VC %s.", logging.PrettyPrintObject(vc))
-		return model.Decision{false, httpErr.Message}, httpErr
+		return model.Decision{Decision: false, Reason: httpErr.Message}, httpErr
 	}
+
+	if issuer.Capabilities == nil {
+		logger.Debugf("No capabilities configured for the issuer %s.", logging.PrettyPrintObject(issuer))
+		return model.Decision{Decision: false, Reason: "No capabilities configured for the issuer"}, httpErr
+	}
+
 	for _, capability := range *issuer.Capabilities {
 		logger.Debugf("Handle capability %s.", logging.PrettyPrintObject(capability))
 		decision, httpErr = evaluateCapability(capability, vc)
@@ -27,31 +44,33 @@ func Verify(vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr
 			return decision, httpErr
 		}
 	}
-	return model.Decision{false, "No allowing capability found."}, httpErr
+	return model.Decision{Decision: false, Reason: "No allowing capability found."}, httpErr
 }
 
 func evaluateCapability(capability model.Capability, vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
 
 	logger.Debugf("Evaluates %s for capability %s.", logging.PrettyPrintObject(vc), logging.PrettyPrintObject(capability))
 
-	now := time.Now()
+	now := clock.Now()
 
 	validFrom, err := time.Parse(time.RFC3339, capability.ValidFor.From)
 	if err != nil {
 		logger.Warn("Was not able to parse timestamp.")
+		return decision, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to parse validFrom.", RootError: err}
 	}
 	validTo, err := time.Parse(time.RFC3339, capability.ValidFor.To)
 	if err != nil {
 		logger.Warn("Was not able to parse timestamp.")
+		return decision, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to parse validTo.", RootError: err}
 	}
 	if now.Before(validFrom) || now.After(validTo) {
-		logger.Debugf("VC %s is not active by %s.", logging.PrettyPrintObject(vc), logging.PrettyPrintObject(capability))
-		return model.Decision{false, "Capabilitiy is not active."}, httpErr
+		logger.Debugf("VC %s is not active by %s. Its now %v", logging.PrettyPrintObject(vc), logging.PrettyPrintObject(capability), now)
+		return model.Decision{Decision: false, Reason: "Capabilitiy is not active."}, httpErr
 	}
 
 	if !contains(vc.Type, capability.CredentialsType) {
 		logger.Debugf("VC type for %s is not allowed by %s.", logging.PrettyPrintObject(vc), logging.PrettyPrintObject(capability))
-		return model.Decision{false, "Capbability does not allow that type of credential."}, httpErr
+		return model.Decision{Decision: false, Reason: "Capbability does not allow that type of credential."}, httpErr
 	}
 
 	if capability.CredentialsType == "CustomerCredential" {
@@ -59,16 +78,16 @@ func evaluateCapability(capability model.Capability, vc model.DSBAVerifiableCred
 		if isIShareVC(vc.CredentialSubject) {
 
 			logger.Debugf("Verify ishare customer credential.")
-			return IShareCustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
+			return iShareVerifier.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
 		} else {
 			logger.Debugf("Verify customer credential %s.", logging.PrettyPrintObject(vc.CredentialSubject))
-			return CustomerCredentialVerifier{}.Verify(capability.Claims, &vc.CredentialSubject)
+			return customerCredentialsVerifier.Verify(capability.Claims, &vc.CredentialSubject, vc.Issuer)
 		}
 	} else {
 		logger.Debugf("Type %s is not supported.", capability.CredentialsType)
 	}
 	logger.Debug("Successfully verified vc.")
-	return model.Decision{true, "No special checks required for the given type of credential."}, httpErr
+	return model.Decision{Decision: true, Reason: "No special checks required for the given type of credential."}, httpErr
 }
 
 func isIShareVC(credentialSubject model.CredentialSubject) bool {
