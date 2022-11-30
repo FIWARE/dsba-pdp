@@ -24,7 +24,7 @@ func init() {
 
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare is enabled.")
-		decider = decision.NewIShareDecider(*decision.NewIShareAuthorizationRegistry(), config.EnvConfig{})
+		decider = decision.NewIShareDecider(decision.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	}
 }
 
