@@ -44,6 +44,10 @@ type IShareAuthorizationRegistry struct {
 	* Authorization registry of the PDP, e.g. where should we get "our" policies from.
 	 */
 	pdpRegistry model.AuthorizationRegistry
+	/**
+	* The token parser for parsing and validating the JWT
+	 */
+	tokenParser TokenParser
 }
 
 /**
@@ -136,15 +140,17 @@ func NewIShareAuthorizationRegistry() (registry *IShareAuthorizationRegistry) {
 		if err != nil {
 			logger.Fatalf("Was not able to read the certificate from %s, err: %v", certificatePath, err)
 		}
-		return &IShareAuthorizationRegistry{signingKey: signingKey, certificateArray: certificateArray, pdpRegistry: pdpAuthorizationRegistry}
+		tokenParser := TokenParser{RealClock{}}
+
+		return &IShareAuthorizationRegistry{signingKey: signingKey, certificateArray: certificateArray, pdpRegistry: pdpAuthorizationRegistry, tokenParser: tokenParser}
 	}
 }
 
-func (iShareAuthRegistry IShareAuthorizationRegistry) GetPDPRegistry() *model.AuthorizationRegistry {
+func (iShareAuthRegistry *IShareAuthorizationRegistry) GetPDPRegistry() *model.AuthorizationRegistry {
 	return &iShareAuthRegistry.pdpRegistry
 }
 
-func (iShareAuthRegistry IShareAuthorizationRegistry) GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError) {
+func (iShareAuthRegistry *IShareAuthorizationRegistry) GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError) {
 
 	accessToken, httpErr := iShareAuthRegistry.getTokenFromAR(authorizationRegistry)
 
@@ -175,7 +181,7 @@ func (iShareAuthRegistry IShareAuthorizationRegistry) GetDelegationEvidence(issu
 	policyRequest.Header.Set("Content-Type", "application/json")
 
 	delegationResponse, err := globalHttpClient.Do(policyRequest)
-	if err != nil {
+	if err != nil || delegationResponse == nil {
 		logger.Debugf("Was not able to retrieve policies from %s, error is %v", authorizationRegistry.GetDelegationAddress(), err)
 		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to get a delegation response.", RootError: err}
 	}
@@ -200,9 +206,9 @@ func (iShareAuthRegistry IShareAuthorizationRegistry) GetDelegationEvidence(issu
 		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Received an invalid body from the ar: %s", delegationResponse.Body), RootError: err}
 	}
 
-	parsedToken, httpErr := parseIShareToken(delegationResponseObject.DelegationToken)
+	parsedToken, httpErr := iShareAuthRegistry.tokenParser.parseIShareToken(delegationResponseObject.DelegationToken)
 	if httpErr != (model.HttpError{}) {
-		logger.Debugf("Was not able to decode the ar response. Error: %v", err)
+		logger.Debugf("Was not able to decode the ar response. Error: %v", httpErr)
 		return delegeationEvidence, httpErr
 	}
 	logger.Debugf("Delegation response: %v", logging.PrettyPrintObject(parsedToken.DelegationEvidence))
@@ -210,7 +216,7 @@ func (iShareAuthRegistry IShareAuthorizationRegistry) GetDelegationEvidence(issu
 	return &parsedToken.DelegationEvidence, httpErr
 }
 
-func (iShareAuthRegistry IShareAuthorizationRegistry) getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
+func (iShareAuthRegistry *IShareAuthorizationRegistry) getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
 
 	signedToken, err := iShareAuthRegistry.generateSignedToken(authorizationRegistry.Id, iShareClientId)
 	if err != nil {
@@ -235,7 +241,7 @@ func (iShareAuthRegistry IShareAuthorizationRegistry) getTokenFromAR(authorizati
 
 	}
 
-	if tokenResponse.Body == nil {
+	if tokenResponse == nil || tokenResponse.StatusCode != 200 || tokenResponse.Body == nil {
 		logger.Debugf("Failed to decode token response from ar at: %s", authorizationRegistry.GetTokenAddress())
 		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: "Did not receive a valid body from the idp.", RootError: err}
 
@@ -256,7 +262,7 @@ func (iShareAuthRegistry IShareAuthorizationRegistry) getTokenFromAR(authorizati
 	return decodedResponse["access_token"].(string), httpErr
 }
 
-func (iShareAuthRegistry IShareAuthorizationRegistry) generateSignedToken(arId string, clientId string) (signedToken string, err error) {
+func (iShareAuthRegistry *IShareAuthorizationRegistry) generateSignedToken(arId string, clientId string) (signedToken string, err error) {
 
 	randomUuid, err := uuid.NewRandom()
 	if err != nil {

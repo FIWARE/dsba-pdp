@@ -15,6 +15,16 @@ jobs:
         with:
           go-version: 1.17.3
 
+      - name: Install coveralls dependencies
+        run: |
+          go get github.com/modocache/gover
+          go get github.com/mattn/goveralls
+
       - name: Go test
         run: |
-          go test -v -covermode=count -coverprofile=coverage.out ./...
+          go test ./... -v -cover
+
+      - name: Prepare and send
+        run: |
+          gover
+          goveralls -repotoken ${{ secrets.COVERALLS_TOKEN }}

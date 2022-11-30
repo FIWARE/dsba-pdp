@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
@@ -40,6 +41,14 @@ func (mr *mockRegistry) GetDelegationEvidence(issuer string, delegationTarget st
 	logger.Debugf("Return evidence %s and error %s.", logging.PrettyPrintObject(mr.mockEvidence), logging.PrettyPrintObject(mr.mockError))
 	mr.requestedPolicies = requiredPolicies
 	return &mr.mockEvidence, mr.mockError
+}
+
+type mockClock struct{}
+
+func (c mockClock) Now() time.Time {
+	logger.Info("Return now")
+	// stay on 23-12-2021 so that the cert chain is still valid
+	return time.Unix(1640272719, 0)
 }
 
 func TestDecide(t *testing.T) {
