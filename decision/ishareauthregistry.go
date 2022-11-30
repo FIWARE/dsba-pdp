@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -56,14 +56,9 @@ type IShareAuthorizationRegistry struct {
 var tokenExpiryInS = 30
 
 /**
- * Global folder accessor
- */
-var ishareFolderAccessor folderAccessor = folderAccessor{getFolderContent}
-
-/**
  * Global file accessor
  */
-var ishareFileAccessor fileAccessor = fileAccessor{writeFile, readFile}
+var ishareFileAccessor fileAccessor = diskFileAccessor{}
 
 /**
 * Client id of the pdp in the iShare context. Will be used when requesting the authorization registry.
@@ -284,6 +279,14 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) generateSignedToken(arId 
 	// set the certificate(s) to the header
 	jwtToken.Header["x5c"] = iShareAuthRegistry.certificateArray
 
+	defer func() {
+
+		if panicErr := recover(); panicErr != nil {
+			logger.Warnf("An invalid key was configured: %v. Err: %s", iShareAuthRegistry.signingKey, panicErr)
+			err = errors.New("invalid_key_configured")
+		}
+	}()
+	logger.Debugf("T %v", iShareAuthRegistry.signingKey)
 	// sign the token
 	signedToken, err = jwtToken.SignedString(iShareAuthRegistry.signingKey)
 	if err != nil {
@@ -298,7 +301,7 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) generateSignedToken(arId 
  */
 func getSigningKey(keyPath string) (key *rsa.PrivateKey, err error) {
 	// read key file
-	priv, err := ishareFileAccessor.read(keyPath)
+	priv, err := ishareFileAccessor.ReadFile(keyPath)
 	if err != nil {
 		logger.Warnf("Was not able to read the key file from %s. err: %v", keyPath, err)
 		return key, err
@@ -319,7 +322,7 @@ func getSigningKey(keyPath string) (key *rsa.PrivateKey, err error) {
  */
 func getCertificateArray(certificatePath string) (encodedCert []string, err error) {
 	// read certificate file
-	cert, err := ishareFileAccessor.read(certificatePath)
+	cert, err := ishareFileAccessor.ReadFile(certificatePath)
 	if err != nil {
 		logger.Warnf("Was not able to read the certificate file from %s. err: %v", certificatePath, err)
 		return encodedCert, err
@@ -359,27 +362,12 @@ func deleteEmpty(arrayToClean []string) (cleanedArray []string) {
 
 // file system interfaces
 
-type folderContentGetter func(path string) (folders []fs.FileInfo, err error)
-type folderAccessor struct {
-	get folderContentGetter
+// Interface to the http-client
+type fileAccessor interface {
+	ReadFile(filename string) ([]byte, error)
 }
+type diskFileAccessor struct{}
 
-type fileWriter func(path string, content []byte, fileMode fs.FileMode) (err error)
-type fileReader func(filename string) (content []byte, err error)
-
-type fileAccessor struct {
-	write fileWriter
-	read  fileReader
-}
-
-func getFolderContent(path string) (folders []fs.FileInfo, err error) {
-	return ioutil.ReadDir(path)
-}
-
-func writeFile(path string, content []byte, fileMode fs.FileMode) (err error) {
-	return ioutil.WriteFile(path, content, fileMode)
-}
-
-func readFile(filename string) ([]byte, error) {
+func (diskFileAccessor) ReadFile(filename string) ([]byte, error) {
 	return ioutil.ReadFile(filename)
 }
