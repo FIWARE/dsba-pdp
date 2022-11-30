@@ -169,14 +169,6 @@ func getBadGatewayError() model.HttpError {
 	return model.HttpError{Status: http.StatusBadGateway}
 }
 
-func getNotFoundError() model.HttpError {
-	return model.HttpError{Status: http.StatusNotFound}
-}
-
-func getInternalError() model.HttpError {
-	return model.HttpError{Status: http.StatusInternalServerError}
-}
-
 func getNoIssuerDSBAToken() model.DSBAToken {
 	return model.DSBAToken{
 		VerifiableCredential: model.DSBAVerifiableCredential{
