@@ -136,26 +136,185 @@ func TestGetSigningKeyErrors(t *testing.T) {
 		testName      string
 		testKey       []byte
 		mockError     error
-		expectedKey   *rsa.PrivateKey
 		expectedError error
 	}
 
 	tests := []test{
-		{"When file access fails, return an error.", nil, errors.New("access_denied"), nil, errors.New("access_denied")},
-		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, nil, errors.New("invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
+		{"When file access fails, return an error.", nil, errors.New("access_denied"), errors.New("access_denied")},
+		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
 	}
 
 	for _, tc := range tests {
 		logger.Infof("TestGetSigningKey +++++++++++++++++ Running test: %s", tc.testName)
 		ishareFileAccessor = &mockFileAccessor{tc.testKey, tc.mockError}
-		key, err := getSigningKey("myKey")
+		_, err := getSigningKey("myKey")
 		if err.Error() != tc.expectedError.Error() {
 			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, err)
 		}
-		if key != tc.expectedKey {
-			t.Errorf("%s: Received an unexpected key. Expected: %v, Actual: %v", tc.testName, tc.expectedKey, key)
+	}
+}
+
+func TestGetCertificateArrayErrors(t *testing.T) {
+
+	logging.Log().SetLevel(logrus.DebugLevel)
+
+	type test struct {
+		testName      string
+		testCerts     []byte
+		mockError     error
+		expectedError error
+	}
+	tests := []test{
+		{"When file access fails, return an error.", nil, errors.New("access_denied"), errors.New("access_denied")},
+		{"When file access returns a non parsable certifcate, return an error.", []byte("noCerts"), nil, errors.New("no_certificate_found")},
+		{"When file access returns a certificate with invalid blocks, return an error.", []byte(invalidBlock()), nil, errors.New("x509: malformed certificate")},
+		{"When file access returns a certificate with an unexpected block, return an error.", []byte(unexpectedBlock()), nil, errors.New("unexpected_block")},
+	}
+
+	for _, tc := range tests {
+		logger.Infof("TestGetSigningKey +++++++++++++++++ Running test: %s", tc.testName)
+		ishareFileAccessor = &mockFileAccessor{tc.testCerts, tc.mockError}
+		_, err := getCertificateArray("myCerts")
+		logger.Debugf("Err %v", err)
+		if err.Error() != tc.expectedError.Error() {
+			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, err)
 		}
 	}
+}
+
+func unexpectedBlock() string {
+
+	return `-----BEGIN CERTIFICATE-----
+MIID9zCCAt+gAwIBAgIUVUrFp9npgRF7SyY4e7NNX56hYy4wDQYJKoZIhvcNAQEL
+BQAwgYoxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xDzANBgNVBAcMBkJl
+cmxpbjEfMB0GA1UECgwWRklXQVJFIEZvdW5kYXRpb24gZS5WLjEMMAoGA1UECwwD
+RGV2MSowKAYJKoZIhvcNAQkBFhtmaXdhcmUtdGVjaC1oZWxwQGZpd2FyZS5vcmcw
+HhcNMjExMTI0MTIxNTIxWhcNMjExMjI0MTIxNTIxWjCBijELMAkGA1UEBhMCREUx
+DzANBgNVBAgMBkJlcmxpbjEPMA0GA1UEBwwGQmVybGluMR8wHQYDVQQKDBZGSVdB
+UkUgRm91bmRhdGlvbiBlLlYuMQwwCgYDVQQLDANEZXYxKjAoBgkqhkiG9w0BCQEW
+G2Zpd2FyZS10ZWNoLWhlbHBAZml3YXJlLm9yZzCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBALX9mjX60cd4TuRsMUBMeYEXLUxlwiWxKkxZ+qShqnboZYhU
+e4ALsQRD7ogLbr8uYq8Wjk2qY3c4YVGFn1hGLgg6KbdWCzfuEmaJ7JOO/nCxdxgt
+2Joqzdk8hlU8YFZFY4v3B1vHohtM/dLE9VsoMcgubOzP+VhdEv5hLKPRgGAnKB2h
+hs7VW4DGyC6ApLedASVwo8hoChMC5qqpEhPYyKvJAYbNWV9vwi/+0urtpIMvJhqC
+cGvGN/S1KbBQyLqXjBAFyRXZm1pEaaJMlJNm4GW6yLKeHadPeBwZRzSGOddXxg1g
+iiWqkHLkYQAgWLWAW2XBEgesLyLkqS4sfVxXocMCAwEAAaNTMFEwHQYDVR0OBBYE
+FE4QxJE8ZXBZs9WcTpiYfMG+jlR3MB8GA1UdIwQYMBaAFE4QxJE8ZXBZs9WcTpiY
+fMG+jlR3MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABnhdCF2
+N/RaQQsDF0lzhiEvBCkMtyd2VsNGFAryWUyujJRbXBCXq6C3umcC/jHriwuHsBYJ
+FlJM8Tb8neaM2QFXQtlEoJ3T3n2wUK0+RMsqAeogQtQlUVY1NgvKeoJGupfBojEL
+kAOHYqMeXPOCHN3wpHYZF0QfN1z0aiqWQBgxuWp73a+AK7H86PJI8eey3boG0GyD
+toPVwW5bRgHeo595EFDpSedIrd9rHVcqwEGYFjh5FlbbKBEjNDUV4JlZu/JpMa++
+DnPDd90EFWZGKsZpi3ALmya/l9DpESSMWXWe9ZCS7r6vHfLBWl58orjXuKrItmgp
+YEvGmVO+2xZBuEg=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIID9zCCAt+gAwIBAgIUVUrFp9npgRF7SyY4e7NNX56hYy4wDQYJKoZIhvcNAQEL
+BQAwgYoxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xDzANBgNVBAcMBkJl
+cmxpbjEfMB0GA1UECgwWRklXQVJFIEZvdW5kYXRpb24gZS5WLjEMMAoGA1UECwwD
+RGV2MSowKAYJKoZIhvcNAQkBFhtmaXdhcmUtdGVjaC1oZWxwQGZpd2FyZS5vcmcw
+HhcNMjExMTI0MTIxNTIxWhcNMjExMjI0MTIxNTIxWjCBijELMAkGA1UEBhMCREUx
+DzANBgNVBAgMBkJlcmxpbjEPMA0GA1UEBwwGQmVybGluMR8wHQYDVQQKDBZGSVdB
+UkUgRm91bmRhdGlvbiBlLlYuMQwwCgYDVQQLDANEZXYxKjAoBgkqhkiG9w0BCQEW
+G2Zpd2FyZS10ZWNoLWhlbHBAZml3YXJlLm9yZzCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBALX9mjX60cd4TuRsMUBMeYEXLUxlwiWxKkxZ+qShqnboZYhU
+e4ALsQRD7ogLbr8uYq8Wjk2qY3c4YVGFn1hGLgg6KbdWCzfuEmaJ7JOO/nCxdxgt
+2Joqzdk8hlU8YFZFY4v3B1vHohtM/dLE9VsoMcgubOzP+VhdEv5hLKPRgGAnKB2h
+hs7VW4DGyC6ApLedASVwo8hoChMC5qqpEhPYyKvJAYbNWV9vwi/+0urtpIMvJhqC
+cGvGN/S1KbBQyLqXjBAFyRXZm1pEaaJMlJNm4GW6yLKeHadPeBwZRzSGOddXxg1g
+iiWqkHLkYQAgWLWAW2XBEgesLyLkqS4sfVxXocMCAwEAAaNTMFEwHQYDVR0OBBYE
+FE4QxJE8ZXBZs9WcTpiYfMG+jlR3MB8GA1UdIwQYMBaAFE4QxJE8ZXBZs9WcTpiY
+fMG+jlR3MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABnhdCF2
+N/RaQQsDF0lzhiEvBCkMtyd2VsNGFAryWUyujJRbXBCXq6C3umcC/jHriwuHsBYJ
+FlJM8Tb8neaM2QFXQtlEoJ3T3n2wUK0+RMsqAeogQtQlUVY1NgvKeoJGupfBojEL
+kAOHYqMeXPOCHN3wpHYZF0QfN1z0aiqWQBgxuWp73a+AK7H86PJI8eey3boG0GyD
+toPVwW5bRgHeo595EFDpSedIrd9rHVcqwEGYFjh5FlbbKBEjNDUV4JlZu/JpMa++
+DnPDd90EFWZGKsZpi3ALmya/l9DpESSMWXWe9ZCS7r6vHfLBWl58orjXuKrItmgp
+YEvGmVO+2xZBuEg=
+-----END CERTIFICATE-----
+-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC1/Zo1+tHHeE7k
+bDFATHmBFy1MZcIlsSpMWfqkoap26GWIVHuAC7EEQ+6IC26/LmKvFo5NqmN3OGFR
+hZ9YRi4IOim3Vgs37hJmieyTjv5wsXcYLdiaKs3ZPIZVPGBWRWOL9wdbx6IbTP3S
+xPVbKDHILmzsz/lYXRL+YSyj0YBgJygdoYbO1VuAxsgugKS3nQElcKPIaAoTAuaq
+qRIT2MiryQGGzVlfb8Iv/tLq7aSDLyYagnBrxjf0tSmwUMi6l4wQBckV2ZtaRGmi
+TJSTZuBlusiynh2nT3gcGUc0hjnXV8YNYIolqpBy5GEAIFi1gFtlwRIHrC8i5Kku
+LH1cV6HDAgMBAAECggEAPGRv7EHTo5H0/DA7F89I8uGyEowiJUfpdXTWjBNp8hOk
+vdzrLs6ya2vvmA3TLnZCIUAm8Pb+Eu4OvXLOMgj39Zr3hPN0vZavXH+glkb5gIQj
+tU5hdqeFr/U5zsc+YOKd6jCLrJVO4ihmgq8BjMKF4pwlYWCSqhQY3Xl5ytMW+tDz
+g+11No+8VRwHZ5MVEkMFVpOkx3bC24/N5I1ceWducrwFDql4qyjf02SL/AqwdqJZ
+eZPnlcarkwQvQZiNLvsSy3XEPwGEXCK+JTUT8VRP2/gFdQoUweFXt6qWp5hlkIUT
+jY4ky83UbX7qxqSZOb6RPMlhGrhcxW1AUHRMpNRSYQKBgQDxYSsBRFujVqQ/SVeF
+blfDWWY6XH3tRO2NuJnPynzcDpDFUhdXU96567Ge5rhY0xHeo87FkRaim8cWcYlD
+SvTtU0cf0vcS8RsjzWxu2DZ44WHq7hxhClGWz3J945KyG3JQIc/ZOCkGVd9+TnBa
+oBR0woRbZXYo77b06cTcrzGtFwKBgQDBA4yvZilz7cSYM89e+eJqRfqNQ3ldPJtt
+hHR6qV23Ga7MEMFpDyyEqWNjMD+B0eNdE5J1fMWyhSU7VyvrnZZDUN3tzsDH0IXc
+mP4sh7jvrtGrR7zOmZ+9IF1amBuJ45rUk6NPHBbLqc9w6zuBnGqAGDZJoZTn807I
+xq5iFl8UNQKBgCw6CY8p30CGV4HhBlBEb4AzmS+IUupufrhA4q3YBBit8oi1CeHO
+VDjsnpbm31AnHFcW3IQGmYch09Cg7O2PhmEVqSqDlRG7a6Wbtgp5Q0HSygYpqrl9
+EoX3bJr0X6SSstdL2rGKQLoQcerKpHt2aUkbevTkGkpV4cfuLUviLc/xAoGAYSUB
+NPKNYIzGSvigoaPRYj2wWlMgjV3IuLlWyrndsh9aC9lPDyqU9HwwyqZpAFT8Q0dr
+inhvJGfBEnnQYDkjfOQBnwRVoPwBs8LJAu6YlQH/A18K100Yyd61Pbia+66zqdRY
++KMhkgX4o1Ox0o1ASRJmmG6b/JZIC+N7t2CdIBUCgYBLL+yWKv6ZS/C/0E5MYS2j
+ZS1V7+Xj7aPeojR+4hsqKuM5UIPlEtmT/pqB3wtV1T6K067D3mH3hr+MWamVjOU0
+mZwiqNbHMImzY/qXSs/eaPRu0zTQJ2SuHs2FjyDEENA7mi7O0UBQM4sSMJUnT0/s
+CQX2KYOmNdZoUA/bMSCV/w==
+-----END PRIVATE KEY-----
+`
+}
+func invalidBlock() string {
+	return `-----BEGIN CERTIFICATE-----
+MIID9zCCAt+gAwIBAgIUVUrFp9npgRF7SyY4e7NNX56hYy4wDQYJKoZIhvcNAQEL
+BQAwgYoxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xDzANBgNVBAcMBkJl
+cmxpbjEfMB0GA1UECgwWRklXQVJFIEZvdW5kYXRpb24gZS5WLjEMMAoGA1UECwwD
+RGV2MSowKAYJKoZIhvcNAQkBFhtmaXdhcmUtdGVjaC1oZWxwQGZpd2FyZS5vcmcw
+HhcNMjExMTI0MTIxNTIxWhcNMjExMjI0MTIxNTIxWjCBijELMAkGA1UEBhMCREUx
+DzANBgNVBAgMBkJlcmxpbjEPMA0GA1UEBwwGQmVybGluMR8wHQYDVQQKDBZGSVdB
+UkUgRm91bmRhdGlvbiBlLlYuMQwwCgYDVQQLDANEZXYxKjAoBgkqhkiG9w0BCQEW
+G2Zpd2FyZS10ZWNoLWhlbHBAZml3YXJlLm9yZzCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBALX9mjX60cd4TuRsMUBMeYEXLUxlwiWxKkxZ+qShqnboZYhU
+e4ALsQRD7ogLbr8uYq8Wjk2qY3c4YVGFn1hGLgg6KbdWCzfuEmaJ7JOO/nCxdxgt
+2Joqzdk8hlU8YFZFY4v3B1vHohtM/dLE9VsoMcgubOzP+VhdEv5hLKPRgGAnKB2h
+hs7VW4DGyC6ApLedASVwo8hoChMC5qqpEhPYyKvJAYbNWV9vwi/+0urtpIMvJhqC
+cGvGN/S1KbBQyLqXjBAFyRXZm1pEaaJMlJNm4GW6yLKeHadPeBwZRzSGOddXxg1g
+iiWqkHLkYQAgWLWAW2XBEgesLyLkqS4sfVxXocMCAwEAAaNTMFEwHQYDVR0OBBYE
+FE4QxJE8ZXBZs9WcTpiYfMG+jlR3MB8GA1UdIwQYMBaAFE4QxJE8ZXBZs9WcTpiY
+fMG+jlR3MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABnhdCF2
+N/RaQQsDF0lzhiEvBCkMtyd2VsNGFAryWUyujJRbXBCXq6C3umcC/jHriwuHsBYJ
+FlJM8Tb8neaM2QFXQtlEoJ3T3n2wUK0+RMsqAeogQtQlUVY1NgvKeoJGupfBojEL
+kAOHYqMeXPOCHN3wpHYZF0QfN1z0aiqWQBgxuWp73a+AK7H86PJI8eey3boG0GyD
+toPVwW5bRgHeo595EFDpSedIrd9rHVcqwEGYFjh5FlbbKBEjNDUV4JlZu/JpMa++
+DnPDd90EFWZGKsZpi3ALmya/l9DpESSMWXWe9ZCS7r6vHfLBWl58orjXuKrItmgp
+YEvGmVO+2xZBuEg=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIID9zCCAt+gAwIBAgIUVUrFp9npgRF7SyY4e7NNX56hYy4wDQYJKoZIhvcNAQEL
+BQAwgYoxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xDzANBgNVBAcMBkJl
+cmxpbjEfMB0GA1UECgwWRklXQVJFIEZvdW5kYXRpb24gZS5WLjEMMAoGA1UECwwD
+RGV2MSowKAYJKoZIhvcNAQkBFhtmaXdhcmUtdGVjaC1oZWxwQGZpd2FyZS5vcmcw
+HhcNMjExMTI0MTIxNTIxWhcNMjExMjI0MTIxNTIxWjCBijELMAkGA1UEBhMCREUx
+DzANBgNVBAgMBkJlcmxpbjEPMA0GA1UEBwwGQmVybGluMR8wHQYDVQQKDBZGSVdB
+UkUgRm91bmRhdGlvbiBlLlYuMQwwCgYDVQQLDANEZXYxKjAoBgkqhkiG9w0BCQEW
+G2Zpd2FyZS10ZWNoLWhlbHBAZml3YXJlLm9yZzCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBALX9mjX60cd4TuRsMUBMeYEXLUxlwiWxKkxZ+qShqnboZYhU
+e4ALsQRD7ogLbr8uYq8Wjk2qY3c4YVGFn1hGLgg6KbdWCzfuEmaJ7JOO/nCxdxgt
+2Joqzdk8hlU8YFZFY4v3B1vHohtM/dLE9VsoMcgubOzP+VhdEv5hLKPRgGAnKB2h
+hs7VW4DGyC6ApLedASVwo8hoChMC5qqpEhPYyKvJAYbNWV9vwi/+0urtpIMvJhqC
+cGvGN/S1KbBQyLqXjBAFyRXZm1pEaaJMlJNm4GW6yLKeHadPeBwZRzSGOddXxg1g
+iiWqkHLkYQAgWLWAW2XBEgesLyLkqS4sfVxXocMCAwEAAaNTMFEwHQYDVR0OBBYE
+FE4QxJE8ZXBZs9WcTpiYfMG+jlR3MB8GA1UdIwQYMBaAFE4QxJE8ZXBZs9WcTpiY
+fMG+jlR3MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABnhdCF2
+N/RaQQsDF0lzhiEvBCkMtyd2VsNGFAryWUyujJRbXBCXq6C3umcC/jHriwuHsBYJ
+FlJM8Tb8neaM2QFXQtlEoJ3T3n2wUK0+RMsqAeogQtQlUVY1NgvKeoJGupfBojEL
+kAOHYqMeXPOCHN3wpHYZF0QfN1z0aiqWQBgxuWp73a+AK7H86PJI8eey3boG0GyD
+toPVwW5bRgHeo595EFDpSedIrd9rHVcqwEGYFjh5FlbbKBEjNDUV4JlZu/JpMa++
+DnPDd90EFWZGKsZpi3ALmya/l9DpESSMWXWe9ZCS7r6vHfLBWl58orjXuKrItmgp
+YEvGmVO+2xZBuEg=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+bWFsZm9ybWVk
+-----END CERTIFICATE-----
+`
 }
 
 func nonJwtDelegationToken() string {

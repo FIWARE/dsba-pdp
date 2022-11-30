@@ -328,8 +328,8 @@ func getCertificateArray(certificatePath string) (encodedCert []string, err erro
 		return encodedCert, err
 	}
 	derArray := []string{}
-
 	for block, rest := pem.Decode(cert); block != nil; block, rest = pem.Decode(rest) {
+		logger.Debugf("Current block is of type %s.", block.Type)
 		switch block.Type {
 		case "CERTIFICATE":
 			// check that its a parsable certificate, only done on startup e.g. not performance critical
@@ -341,8 +341,11 @@ func getCertificateArray(certificatePath string) (encodedCert []string, err erro
 			derArray = append(derArray, base64.StdEncoding.EncodeToString(block.Bytes))
 		default:
 			logger.Infof("Received unexpected block %s.", block.Type)
-			return encodedCert, fmt.Errorf("unexpected-block")
+			return encodedCert, fmt.Errorf("unexpected_block")
 		}
+	}
+	if len(derArray) == 0 {
+		return derArray, errors.New("no_certificate_found")
 	}
 
 	return derArray, err
