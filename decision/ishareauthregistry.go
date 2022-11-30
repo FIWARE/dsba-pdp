@@ -26,6 +26,15 @@ import (
 var logger = logging.Log()
 var globalHttpClient = client.HttpClient()
 
+const IShareEnabledVar = "ISHARE_ENABLED"
+const CertificatePathVar = "ISHARE_CERTIFICATE_PATH"
+const KeyPathVar = "ISHARE_KEY_PATH"
+const IShareClientIdVar = "ISHARE_CLIENT_ID"
+const AuthorizationRegistryIdVar = "ISHARE_AR_ID"
+const AuthorizationRegistryUrlVar = "ISHARE_AUTHORIZATION_REGISTRY_URL"
+const ArDelegationPathVar = "ISHARE_DELEGATION_PATH"
+const ArTokenPathVar = "ISHARE_TOKEN_PATH"
+
 type AuthorizationRegistry interface {
 	GetPDPRegistry() *model.AuthorizationRegistry
 	GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError)
@@ -72,45 +81,50 @@ var defaultDelegationPath string = "/delegation"
 * Init reades and decodes the key and certificate to be used when contacting the AR
  */
 func NewIShareAuthorizationRegistry() (registry *IShareAuthorizationRegistry) {
-	ishareEnabled, err := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
+	ishareEnabled, err := strconv.ParseBool(os.Getenv(IShareEnabledVar))
 
 	if err != nil || !ishareEnabled {
 		logger.Fatalf("iShare is not enabled.")
 		return
 	} else {
 
-		certificatePath := os.Getenv("ISHARE_CERTIFICATE_PATH")
-		keyPath := os.Getenv("ISHARE_KEY_PATH")
-		iShareClientId = os.Getenv("ISHARE_CLIENT_ID")
-		iShareARId := os.Getenv("ISHARE_AR_ID")
-		iShareARUrl := os.Getenv("ISHARE_AUTHORIZATION_REGISTRY_URL")
+		certificatePath := os.Getenv(CertificatePathVar)
+		keyPath := os.Getenv(KeyPathVar)
+		iShareClientId = os.Getenv(IShareClientIdVar)
+		iShareARId := os.Getenv(AuthorizationRegistryIdVar)
+		iShareARUrl := os.Getenv(AuthorizationRegistryUrlVar)
 
-		delegationPathEnv := os.Getenv("ISHARE_DELEGATION_PATH")
-		tokenPathEnv := os.Getenv("ISHARE_TOKEN_PATH")
+		delegationPathEnv := os.Getenv(ArDelegationPathVar)
+		tokenPathEnv := os.Getenv(ArTokenPathVar)
 
 		if certificatePath == "" {
 			logger.Fatal("Did not receive a valid certificate path.")
+			return
 		}
 
 		if keyPath == "" {
 			logger.Fatal("Did not receive a valid key path.")
+			return
 		}
 
 		if iShareClientId == "" {
 			logger.Fatal("No client id for the pdp was provided.")
+			return
 		}
 
 		pdpAuthorizationRegistry := model.AuthorizationRegistry{}
 
-		if iShareARUrl == "" {
-			logger.Fatal("No URL for the authorization registry was provided.")
-		}
-		pdpAuthorizationRegistry.Host = iShareARUrl
-
 		if iShareARId == "" {
 			logger.Fatal("No id for the authorization registry was provided.")
+			return
 		}
 		pdpAuthorizationRegistry.Id = iShareARId
+
+		if iShareARUrl == "" {
+			logger.Fatal("No URL for the authorization registry was provided.")
+			return
+		}
+		pdpAuthorizationRegistry.Host = iShareARUrl
 
 		if delegationPathEnv != "" {
 			pdpAuthorizationRegistry.DelegationPath = delegationPathEnv
@@ -129,11 +143,13 @@ func NewIShareAuthorizationRegistry() (registry *IShareAuthorizationRegistry) {
 		signingKey, err := getSigningKey(keyPath)
 		if err != nil {
 			logger.Fatalf("Was not able to read the rsa private key from %s, err: %v", keyPath, err)
+			return
 		}
 
 		certificateArray, err := getCertificateArray(certificatePath)
 		if err != nil {
 			logger.Fatalf("Was not able to read the certificate from %s, err: %v", certificatePath, err)
+			return
 		}
 		tokenParser := TokenParser{RealClock{}}
 
