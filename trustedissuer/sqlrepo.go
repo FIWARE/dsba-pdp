@@ -117,9 +117,6 @@ func (sqlRepo SqlRepo) getSqlIssuer(id string) (trustedIssuer dbModel.TrustedIss
 	if err != nil {
 		return trustedIssuer, model.HttpError{Status: http.StatusNotFound, Message: fmt.Sprintf("Issuer %s not found.", id), RootError: nil}
 	}
-	if err != nil {
-		return trustedIssuer, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to load capabilities", RootError: err}
-	}
 	logger.Debugf("Found issuer %s.", logging.PrettyPrintObject(dbIssuer))
 	loadedCapabilities := []dbModel.Capability{}
 	for _, capability := range dbIssuer.Capabilities {
