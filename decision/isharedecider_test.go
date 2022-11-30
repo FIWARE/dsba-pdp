@@ -71,11 +71,21 @@ func TestDecide(t *testing.T) {
 	}
 
 	tests := []test{
+
 		{"Allow GET request when permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
 		{"Allow POST request when permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
 		{"Allow DELETE request when permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
 		{"Allow PUT request when permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
 		{"Allow PATCH request when permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"Allow GET request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
+		{"Allow POST request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
+		{"Allow DELETE request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
+		{"Allow PUT request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
+		{"Allow PATCH request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"Requests without a role issuer should be denied.", getNoIssuerDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{}},
+		{"Requests without a role should be denied.", getNoRoleDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{}},
 
 		{"Deny GET request when no permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
 		{"Deny POST request when no permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
@@ -100,6 +110,30 @@ func TestDecide(t *testing.T) {
 		{"DELETE request with AR error should bubble.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
 		{"PUT request with AR error should bubble.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
 		{"PATCH request with AR error should bubble.", getDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"Deny GET request when no permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
+		{"Deny POST request when no permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
+		{"Deny DELETE request when no permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
+		{"Deny PUT request when no permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
+		{"Deny PATCH request when no permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"Deny GET request when permit is not active anymore.", getIShareDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getAfterPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
+		{"Deny POST request when permit is not active anymore.", getIShareDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getAfterPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
+		{"Deny DELETE request when permit is not active anymore.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", getAfterPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
+		{"Deny PUT request when permit is not active anymore.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getAfterPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
+		{"Deny PATCH request when permit is not active anymore.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getAfterPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"Deny GET request when permit is not active yet.", getIShareDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getNotYetPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
+		{"Deny POST request when permit is not active yet.", getIShareDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", getNotYetPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
+		{"Deny DELETE request when permit is not active yet.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", getNotYetPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
+		{"Deny PUT request when permit is not active yet.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getNotYetPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
+		{"Deny PATCH request when permit is not active yet.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getNotYetPermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
+
+		{"GET request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
+		{"POST request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities", "POST", getEntity(), "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"*"}, []string{"id", "myProp"}, "POST")}},
+		{"DELETE request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-delete", "DELETE", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-delete"}, []string{"*"}, "DELETE")}},
+		{"PUT request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
+		{"PATCH request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
 
 		{"Non-NGSI GET requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
 		{"Non-NGSI POST requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "POST", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
@@ -141,6 +175,49 @@ func getNotFoundError() model.HttpError {
 
 func getInternalError() model.HttpError {
 	return model.HttpError{Status: http.StatusInternalServerError}
+}
+
+func getNoIssuerDSBAToken() model.DSBAToken {
+	return model.DSBAToken{
+		VerifiableCredential: model.DSBAVerifiableCredential{
+			CredentialSubject: model.CredentialSubject{
+				Roles: []model.Role{
+					{Name: []string{"CUSTOMER"}, Target: "myPdp"},
+				},
+			},
+		},
+	}
+}
+
+func getNoRoleDSBAToken() model.DSBAToken {
+	return model.DSBAToken{
+		VerifiableCredential: model.DSBAVerifiableCredential{
+			Issuer: "myIssuer",
+			CredentialSubject: model.CredentialSubject{
+				Roles: []model.Role{},
+			},
+		},
+	}
+}
+
+func getIShareDSBAToken() model.DSBAToken {
+	return model.DSBAToken{
+		VerifiableCredential: model.DSBAVerifiableCredential{
+			Issuer: "myIssuer",
+			CredentialSubject: model.CredentialSubject{
+				Roles: []model.Role{
+					{Name: []string{"CUSTOMER"}, Target: "myPdp"},
+				},
+				IShareCredentialsSubject: &model.IShareCredentialsSubject{
+					AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
+						"myAr": {
+							Host: "ar.org",
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func getDSBAToken() model.DSBAToken {
