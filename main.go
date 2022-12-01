@@ -2,38 +2,23 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
-)
+	"github.com/penglongli/gin-metrics/ginmetrics"
+	"github.com/wistefan/dsba-pdp/http"
+	"github.com/wistefan/dsba-pdp/logging"
+	"github.com/wistefan/dsba-pdp/trustedissuer"
 
-/**
-* Global logger
- */
-var logger = logrus.New()
+	"github.com/gin-gonic/gin"
+)
 
 /**
 * Port to run the pdp at. Default is 8080.
  */
 var serverPort int = 8080
 
-/**
-* Global http client
- */
-var globalHttpClient httpClient = &http.Client{}
-
-/**
-* Repository used to store trusted issuers
- */
-var issuerRepo IssuerRepository
-
-func init() {
-
-}
+var logger = logging.Log()
 
 /**
 * Startup method to run the gin-server.
@@ -42,18 +27,26 @@ func main() {
 
 	router := gin.Default()
 
+	// health check
+	router.GET("/health", http.HealthReq)
+
 	//pdp authz
 	router.POST("/authz", authorize)
 
 	// verification
-	router.POST("/verify", verifyIssuer)
+	router.POST("/verify", trustedissuer.VerifyIssuer)
 
 	//issuer list
-	router.POST("/issuer", createTrustedIssuer)
-	router.GET("/issuer", getIssuers)
-	router.PUT("/issuer/:id", replaceIssuer)
-	router.GET("/issuer/:id", getIssuerById)
-	router.DELETE("/issuer/:id", deleteIssuerById)
+	router.POST("/issuer", trustedissuer.CreateTrustedIssuer)
+	router.GET("/issuer", trustedissuer.GetIssuers)
+	router.PUT("/issuer/:id", trustedissuer.ReplaceIssuer)
+	router.GET("/issuer/:id", trustedissuer.GetIssuerById)
+	router.DELETE("/issuer/:id", trustedissuer.DeleteIssuerById)
+
+	// initiate metrics
+	metrics := ginmetrics.GetMonitor()
+	metrics.SetMetricPath("/metrics")
+	metrics.Use(router)
 
 	router.Run(fmt.Sprintf("0.0.0.0:%v", serverPort))
 	logger.Infof("Started router at %v", serverPort)
@@ -61,51 +54,12 @@ func main() {
 
 func init() {
 
-	mySql := os.Getenv("MYSQL_HOST")
-
-	if mySql != "" {
-		issuerRepo = MySqlRepo{}
-		logger.Infof("Connected to mysql as storage backend.")
-	} else {
-		logger.Warn("Issuer repository is kept in-memory. No persistence will be applied, do NEVER use this for anything but development or testing!")
-		issuerRepo = InMemoryRepo{}
-	}
-
 	serverPortEnvVar := os.Getenv("SERVER_PORT")
-	enableJsonLogging, err := strconv.ParseBool(os.Getenv("JSON_LOGGING_ENABLED"))
-
-	if err != nil {
-		logger.Warnf("Json log env-var not readable. Use default logging. %v", err)
-		enableJsonLogging = false
-	}
-	logLevel := os.Getenv("LOG_LEVEL")
-
-	if logLevel == "DEBUG" {
-		logger.SetLevel(logrus.DebugLevel)
-	} else if logLevel == "INFO" {
-		logger.SetLevel(logrus.InfoLevel)
-	} else if logLevel == "WARN" {
-		logger.SetLevel(logrus.WarnLevel)
-	} else if logLevel == "ERROR" {
-		logger.SetLevel(logrus.ErrorLevel)
-	}
-
-	if enableJsonLogging {
-		logger.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logger.SetFormatter(&logrus.TextFormatter{})
-	}
 
 	serverPortEnv, err := strconv.Atoi(serverPortEnvVar)
 	if err != nil {
-		logger.Warnf("No valid server port was provided, run on default %s.", serverPort)
+		logger.Warnf("No valid server port was provided, run on default %d.", serverPort)
 	} else {
 		serverPort = serverPortEnv
 	}
-}
-
-// Interface to the http-client
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-	PostForm(url string, data url.Values) (*http.Response, error)
 }

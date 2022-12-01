@@ -1,12 +1,6 @@
-package main
+package model
 
 import "github.com/golang-jwt/jwt/v4"
-
-// interface of the configured decider
-
-type Decider interface {
-	Decide(token *DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (descision Decision, err httpError)
-}
 
 // error interface
 
@@ -15,18 +9,18 @@ type Decision struct {
 	Reason   string `json:"reason"`
 }
 
-type httpError struct {
-	status    int
-	message   string
-	rootError error
+type HttpError struct {
+	Status    int
+	Message   string
+	RootError error
 }
 
-func (err *httpError) Error() string {
-	return err.message
+func (err *HttpError) Error() string {
+	return err.Message
 }
 
-func (err *httpError) GetRoot() error {
-	return err.rootError
+func (err *HttpError) GetRoot() error {
+	return err.RootError
 }
 
 // token as used by the dsba-mvf
@@ -40,7 +34,7 @@ type DSBAVerifiableCredential struct {
 	Context           []string          `json:"@context"`
 	Id                string            `json:"id"`
 	Type              []string          `json:"type"`
-	Issuer            Issuer            `json:"issuer"`
+	Issuer            string            `json:"issuer"`
 	IssuanceDate      string            `json:"issuanceDate"`
 	ValidFrom         string            `json:"validFrom"`
 	ExpirationDate    string            `json:"expirationDate"`
@@ -49,15 +43,13 @@ type DSBAVerifiableCredential struct {
 
 type Role struct {
 	// name of the role, for example READER
-	Name string `json:"name"`
+	Name     []string `json:"name"`
+	Target   string   `json:"target"`
+	Provider string   `json:"provider,omitempty"`
 }
 
 type CredentialSubject struct {
 	Id    string `json:"id"`
 	Roles []Role `json:"roles"`
 	*IShareCredentialsSubject
-}
-
-type Issuer struct {
-	Id string `json:"id"`
 }

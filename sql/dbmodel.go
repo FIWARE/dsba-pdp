@@ -28,10 +28,17 @@ type Claim struct {
 }
 
 type AllowedValue struct {
-	ID           int
-	AllowedValue string
-
+	ID               int
+	AllowedString    string
+	AllowedNumber    int
+	AllowedBoolean   bool
+	AllowedRolevalue string
 	//ref to the claim
 	ClaimRef Claim `ref:"claim" fk:"id" auto:"true"`
 	Claim    int
+}
+
+type AllowedRole struct {
+	Name       []string
+	ProviderId string
 }

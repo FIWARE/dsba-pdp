@@ -1,11 +1,11 @@
-package main
+package model
 
 import "github.com/golang-jwt/jwt/v4"
 
 /**
 * Constant indicating the "permit" effect as defined by iShare
  */
-const iSharePermitEffect string = "Permit"
+const ISharePermitEffect string = "Permit"
 
 // data structures defined by the [iShare-Delegation endpoint specification]: https://dev.ishareworks.org/delegation/endpoint.html
 
@@ -99,16 +99,11 @@ type IShareToken struct {
 
 type IShareCredentialsSubject struct {
 	// information about the authorization registry, to retrieve the policies for the issuer
-	AuthorizationRegistry *AuthorizationRegistry `json:"authorizationRegistry"`
-	Name                  string                 `json:"name,omitempty"`
-	GivenName             string                 `json:"given_name,omitempty"`
-	FamilyName            string                 `json:"family_name,omitempty"`
-	PreferredUsername     string                 `json:"preferred_username,omitempty"`
-	Email                 string                 `json:"email,omitempty"`
+	AuthorizationRegistries *map[string]AuthorizationRegistry `json:"authorizationRegistry"`
 }
 
 type AuthorizationRegistry struct {
-	Id   string `json:"id"`
+	Id   string `json:"id,omitempty"`
 	Host string `json:"host"`
 	// will use default path it not included - {host}/connect/token
 	TokenPath string `json:"tokenPath,omitempty"`
@@ -116,7 +111,7 @@ type AuthorizationRegistry struct {
 	DelegationPath string `json:"delegationPath,omitempty"`
 }
 
-func (ar AuthorizationRegistry) getTokenAddress() string {
+func (ar AuthorizationRegistry) GetTokenAddress() string {
 	if ar.TokenPath == "" {
 		return ar.Host + "/connect/token"
 	} else {
@@ -124,7 +119,7 @@ func (ar AuthorizationRegistry) getTokenAddress() string {
 	}
 }
 
-func (ar AuthorizationRegistry) getDelegationAddress() string {
+func (ar AuthorizationRegistry) GetDelegationAddress() string {
 	if ar.DelegationPath == "" {
 		return ar.Host + "/delegation"
 	} else {

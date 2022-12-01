@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push
+
+jobs:
+    pdpd-test: 
+      runs-on: ubuntu-latest
+
+      steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.3
+
+      - name: Install coveralls dependencies
+        run: |
+          go get github.com/modocache/gover
+          go get github.com/mattn/goveralls
+          go get github.com/go-playground/validator/v10
+
+      - name: Go test
+        run: |
+          go test ./... -v -cover
+
+      - name: Prepare and send
+        run: |
+          gover
+          goveralls -repotoken ${{ secrets.COVERALLS_TOKEN }}

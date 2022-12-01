@@ -37,13 +37,15 @@ In this case, the user "UserA" of HappyPets has fullfilled the SIOP flow to Pack
 		"VerifiableCredential",
 		"CustomerCredential"
 	],
-	"issuer": {
-		"id": "did:elsi:happypets"
-	},
+	"issuer": "did:ebsi:happypets",
+  "issuanceDate": "2022-11-23T15:23:13Z",
+  "validFrom": "2022-11-23T15:23:13Z",
+  "expirationDate": "2032-11-23T15:23:13Z",
 	"credentialSubject": {
 		"id": "did:peer:99ab5bca41bb45b78d242a46f0157b7d",
 		"roles": [{
-			"name": "STANDARD_CUSTOMER"
+			"name": ["STANDARD_CUSTOMER"],
+      "target": "did:ebsi:packetdelivery"
 		}]
 	}
 }
@@ -98,9 +100,42 @@ In case of the [Quickstart-Example](#quick-start), the following configuration f
 ```
 The ```trusted-issuer``` consists of its ID and a list of capabilities. The capabilities describe the types of credentials an Issuer is allowed to issue and the claims it can use. The trusted-issuer check will "trust" the issuer if one of the capabilities can be successfully validated.
 
-The current implementation supports 2 types of VerifiableCredentials - ```CustomerCredential``` and ```IShareCustomerCredential```
-For ```CustomerCredential```, it will be checked that the assigned roles are allowed for the given issuer and no additional information is provided.
-For ```IShareCustomerCredential```, the same role check will happen. In addition, it will be checked that only not-forbidden AR's are specified. 
+The current implementation supports of VerifiableCredentials of type ```CustomerCredential```. The credential can either include plain role information, where the role is resolved in the context of the local AuthorizationRegistry. The credential will be checked if the assigned roles are allowed for the given issuer.
+If the optional information ```authorizationRegistries``` and ```role.provider``` is set in the VC, it will also be checked if the ARs are allowed and if the provider is allowed to be used for the role.
+Such a VC will look as following:
+
+```json 
+{
+	"@context": [
+		"https://www.w3.org/2018/credentials/v1",
+		"https://happypets.fiware.io/2022/credentials/employee/v1"
+	],
+	"id": "https://happypets.fiware.io/credential/25159389-8dd17b796ac0",
+	"type": [
+		"VerifiableCredential",
+		"CustomerCredential"
+	],
+	"issuer": "did:ebsi:happypets",
+  "issuanceDate": "2022-11-23T15:23:13Z",
+  "validFrom": "2022-11-23T15:23:13Z",
+  "expirationDate": "2032-11-23T15:23:13Z",
+	"credentialSubject": {
+		"id": "did:peer:99ab5bca41bb45b78d242a46f0157b7d",
+    "authorizationRegistry": {
+      "EU.EORI.HAPPYPETS": {
+          "host": "http://keyrock:6080",
+          "tokenPath": "/oauth2/token",
+          "delegationPath": "/ar/delegation"
+      }
+    },
+		"roles": [{
+      "name": ["GOLD_CUSTOMER"],
+      "target": "did:ebsi:packetdelivery",
+      "provider": "EU.EORI.HAPPYPETS"
+		}]
+	}
+}
+```
 
 2. Decider
 
