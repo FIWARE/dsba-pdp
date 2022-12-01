@@ -227,7 +227,7 @@ func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, r
 		Identifiers: []string{entityId},
 		Attributes:  []string{attributeName},
 	}
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
