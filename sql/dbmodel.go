@@ -32,7 +32,7 @@ type AllowedValue struct {
 	AllowedString    string
 	AllowedNumber    int
 	AllowedBoolean   bool
-	AllowedRolevalue AllowedRole
+	AllowedRolevalue string
 	//ref to the claim
 	ClaimRef Claim `ref:"claim" fk:"id" auto:"true"`
 	Claim    int

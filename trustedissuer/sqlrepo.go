@@ -2,6 +2,7 @@ package trustedissuer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -270,7 +271,8 @@ func toSqlClaim(claim model.Claim) dbModel.Claim {
 			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedString: v})
 		}
 		if v, err := value.AsAllowedValuesRoleValue(); err == nil && v != (model.RoleValue{}) {
-			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedRolevalue: dbModel.AllowedRole{Name: *v.Name, ProviderId: v.ProviderId}})
+			roleValueString, _ := json.Marshal(dbModel.AllowedRole{Name: *v.Name, ProviderId: v.ProviderId})
+			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedRolevalue: string(roleValueString)})
 		}
 	}
 	sqlClaim.AllowedValues = allowedValues
@@ -311,9 +313,12 @@ func fromSqlClaim(sqlClaim dbModel.Claim) model.Claim {
 			}
 			allowedValues = append(allowedValues, stringValue)
 		}
-		if allowedValue.AllowedRolevalue.ProviderId != "" {
+		if allowedValue.AllowedRolevalue != "" {
 			roleValue := model.AllowedValue{}
-			err := roleValue.FromClaimAllowedValuesRoleValue(model.RoleValue{Name: &allowedValue.AllowedRolevalue.Name, ProviderId: allowedValue.AllowedRolevalue.ProviderId})
+			allowedRole := dbModel.AllowedRole{}
+			json.Unmarshal([]byte(allowedValue.AllowedRolevalue), &allowedRole)
+
+			err := roleValue.FromClaimAllowedValuesRoleValue(model.RoleValue{Name: &allowedRole.Name, ProviderId: allowedRole.ProviderId})
 			if err != nil {
 				logger.Warnf("Value %s could not be mapped to an allowed role value. Err: %v", allowedValue.AllowedRolevalue, err)
 				continue
