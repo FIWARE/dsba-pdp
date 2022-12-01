@@ -141,12 +141,38 @@ Such a VC will look as following:
 
 Depending on the type of credential, the decider will now evaluate the request in the context of the VC. Currently, only the ```iShare-decider``` is implemented. Depending on the credentials type, the ```iShare-decider``` will use [iShare-compliant](https://dev.ishareworks.org) authoriation-registries to evaluate the request against the registered policies. 
 
+
+# Configuration
+
+The service provides the following configuration options:
+
+| Name | Description | Default |
+|------|-------------|---------|
+|   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
+|   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
+|   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
+|   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
+|   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
+
+
 # Persistence
 
 To run the trusted issuer service with persistence, provide the following ENV-Vars:
 
 | Name | Description | Default |
 |------|-------------|---------|
+|   SERVER_PORT  |       Port that the pdp will listen at. | ```8080```  |
+|   JSON_LOGGING_ENABLED  |    Should the pdp log in json format? | ```true```  |
+|   LOG_LEVEL  |    Log level to be used. | ```INFO```  |
+|   ISHARE_ENABLED  |    Should the pdp use the iShare-authorization registry? | ```true```  |
+|   ISHARE_CERTIFICATE_PATH  |       Path to read the iShare certificate from. | ```/iShare/certificate.pem```  |
+|   ISHARE_KEY_PATH  |       Path to read the iShare key from. | ```/iShare/key.pem```  |
+|   ISHARE_CLIENT_ID  |       Id to be used for the IDP when interacting in iShare. | ```EU.EORI.MyDummyClient```  |
+|   ISHARE_AR_ID  |       Id of the Authorization Registry to be used. | ```EU.EORI.NL000000004```  |
+|   ISHARE_AUTHORIZATION_REGISTRY_URL  |       URL of the authorization registry. | ```https://ar.isharetest.net```  |
+|   ISHARE_DELEGATION_PATH  |      Path to be used for making delegation requests at the AR. | ```/delegation```  |
+|   ISHARE_TOKEN_PATH  |       Path to be used for making token requests at the AR. | ```/connect/token```  |
+|   PROVIDER_ID  |       ID to be used as a (default) role provider when verfiying the issuer. | ```did:ebsi:myprovider```  |
 |   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
 |   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
 |   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
