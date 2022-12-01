@@ -208,7 +208,7 @@ func buildRequiredPoliciesForEntity(entityId string, requestType string, request
 		return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("%s is not supported on /entities/{id}.", requestType), RootError: nil}
 	}
 	// empty env is again a workaround for ishare test ar...
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
@@ -227,7 +227,7 @@ func buildRequiredPoliciesForSingleAttr(entityId string, attributeName string, r
 		Identifiers: []string{entityId},
 		Attributes:  []string{attributeName},
 	}
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
@@ -241,7 +241,7 @@ func buildRequiredPoliciesForAttrs(entityId string, requestType string, requestB
 		Identifiers: []string{entityId},
 		Attributes:  getAttributesFromBody(requestBody)}
 
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 }
 
 func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
@@ -276,7 +276,7 @@ func buildRequiredPoliciesForEntities(requestUrl *url.URL, requestType string, r
 		return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("%s is not supported on /entities.", requestType), RootError: nil}
 	}
 
-	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}, Environment: &model.Environment{ServiceProviders: []string{}}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
+	return []model.Policy{{Target: &model.PolicyTarget{Resource: &resource, Actions: []string{requestType}}, Rules: []model.Rule{{Effect: "Permit"}}}}, httpErr
 
 }
 
