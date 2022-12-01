@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/penglongli/gin-metrics/ginmetrics"
+	"github.com/wistefan/dsba-pdp/http"
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/trustedissuer"
 
@@ -25,6 +27,9 @@ func main() {
 
 	router := gin.Default()
 
+	// health check
+	router.GET("/health", http.HealthReq)
+
 	//pdp authz
 	router.POST("/authz", authorize)
 
@@ -37,6 +42,11 @@ func main() {
 	router.PUT("/issuer/:id", trustedissuer.ReplaceIssuer)
 	router.GET("/issuer/:id", trustedissuer.GetIssuerById)
 	router.DELETE("/issuer/:id", trustedissuer.DeleteIssuerById)
+
+	// initiate metrics
+	metrics := ginmetrics.GetMonitor()
+	metrics.SetMetricPath("/metrics")
+	metrics.Use(router)
 
 	router.Run(fmt.Sprintf("0.0.0.0:%v", serverPort))
 	logger.Infof("Started router at %v", serverPort)

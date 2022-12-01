@@ -7,14 +7,19 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-rel/mysql"
 	"github.com/go-rel/rel"
 	"github.com/go-rel/rel/where"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/hellofresh/health-go/v5"
+	httpHealth "github.com/wistefan/dsba-pdp/http"
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
 	dbModel "github.com/wistefan/dsba-pdp/sql"
+
+	healthMysql "github.com/hellofresh/health-go/v5/checks/mysql"
 )
 
 type SqlRepo struct {
@@ -68,6 +73,19 @@ func GetMySqlRepository() rel.Repository {
 	if err != nil {
 		logger.Fatalf("Was not able to connect to db: %s:%d/%s as user %s. Err: %v", mysqlHost, mySqlPort, mysqlDb, mysqlUser, err)
 	}
+
+	// register health check
+	httpHealth.Health().Register(
+		health.Config{
+			Name:      "mysql",
+			Timeout:   time.Second * 2,
+			SkipOnErr: false,
+			Check: healthMysql.New(healthMysql.Config{
+				DSN: connectionString,
+			}),
+		},
+	)
+
 	return rel.New(adapter)
 }
 
