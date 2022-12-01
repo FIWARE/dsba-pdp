@@ -175,7 +175,7 @@ To run the trusted issuer service with persistence, provide the following ENV-Va
 |   PROVIDER_ID  |       ID to be used as a (default) role provider when verfiying the issuer. | ```did:ebsi:myprovider```  |
 |   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
 |   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
-|   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
+|   MYSQL_DATABASE   |       Schema to be used     |  ```dsba``` |
 |   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
 |   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
 
