@@ -85,6 +85,8 @@ jobs:
           dockerfiles: |
             ./Dockerfile-migrations
           context: ./
+          build-args: |
+            VERSION=${{needs.generate-version.outputs.version}}
 
       - name: Push To quay.io
         id: push-to-quay

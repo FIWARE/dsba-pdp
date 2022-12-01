@@ -5,7 +5,10 @@ import "github.com/go-rel/rel"
 func MigrateCreateAllowedValues(schema *rel.Schema) {
 	schema.CreateTable("allowed_values", func(t *rel.Table) {
 		t.ID("id")
-		t.String("allowed_value")
+		t.String("allowed_string")
+		t.Int("allowed_number")
+		t.Bool("allowed_boolean")
+		t.String("allowed_rolevalue")
 		t.Int("claim", rel.Scale(10), rel.Unsigned(true))
 		t.ForeignKey("claim", "claims", "id")
 	})
