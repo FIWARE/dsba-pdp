@@ -7,11 +7,20 @@ import (
 	"github.com/hellofresh/health-go/v5"
 )
 
+/**
+* Version of the component. Should be overwritten by linker flags with the real version.
+ */
+var Version = "development"
+
+/**
+* Pointer to the health check. Can be used to register additional components to check
+ */
 var healthCheck *health.Health
 
 func init() {
 	healthCheck, _ = health.New(health.WithComponent(health.Component{
-		Name: "dsba-pdp",
+		Name:    "dsba-pdp",
+		Version: Version,
 	}))
 }
 

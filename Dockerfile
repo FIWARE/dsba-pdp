@@ -1,5 +1,7 @@
 FROM golang:1.18-alpine
 
+ARG VERSION="development-build"
+
 ENV SERVER_PORT="8080"
 ENV GIN_MODE=release
 ENV JSON_LOGGING_ENABLED=true
@@ -27,6 +29,6 @@ WORKDIR /go/src/app
 COPY ./ ./
 
 RUN go get -d -v ./...
-RUN go install -v ./...
+RUN go install -ldflags="-X 'github.com/wistefan/dsba-pdp/http.Version=${VERSION}'" -v ./...
 
 CMD ["dsba-pdp"]
