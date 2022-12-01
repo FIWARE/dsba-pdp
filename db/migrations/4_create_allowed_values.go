@@ -8,7 +8,7 @@ func MigrateCreateAllowedValues(schema *rel.Schema) {
 		t.String("allowed_string")
 		t.Int("allowed_number")
 		t.Bool("allowed_boolean")
-		t.JSON("allowed_rolevalue")
+		t.String("allowed_rolevalue")
 		t.Int("claim", rel.Scale(10), rel.Unsigned(true))
 		t.ForeignKey("claim", "claims", "id")
 	})
