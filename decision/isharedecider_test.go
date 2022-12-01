@@ -327,8 +327,7 @@ func getPolicy(entityType string, identifiers []string, attributes []string, req
 				Identifiers: identifiers,
 				Attributes:  attributes,
 			},
-			Actions:     []string{request},
-			Environment: &model.Environment{ServiceProviders: []string{}},
+			Actions: []string{request},
 		},
 		Rules: []model.Rule{
 			{
