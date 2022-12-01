@@ -261,12 +261,16 @@ func toSqlCapability(capability model.Capability) dbModel.Capability {
 func toSqlClaim(claim model.Claim) dbModel.Claim {
 	sqlClaim := dbModel.Claim{Name: claim.Name}
 	allowedValues := []dbModel.AllowedValue{}
-	for _, value := range claim.AllowedValues {
-		if value.String != "" {
-			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedString: value.String})
+
+	if claim.AllowedValues == nil {
+		return sqlClaim
+	}
+	for _, value := range *claim.AllowedValues {
+		if v, err := value.AsAllowedValuesStringValue(); err == nil && v != "" {
+			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedString: v})
 		}
-		if value.RoleValue != (model.RoleValue{}) {
-			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedRolevalue: dbModel.AllowedRole{Name: *value.RoleValue.Name, ProviderId: value.RoleValue.ProviderId}})
+		if v, err := value.AsAllowedValuesRoleValue(); err == nil && v != (model.RoleValue{}) {
+			allowedValues = append(allowedValues, dbModel.AllowedValue{AllowedRolevalue: dbModel.AllowedRole{Name: *v.Name, ProviderId: v.ProviderId}})
 		}
 	}
 	sqlClaim.AllowedValues = allowedValues
@@ -299,12 +303,25 @@ func fromSqlClaim(sqlClaim dbModel.Claim) model.Claim {
 	allowedValues := []model.AllowedValue{}
 	for _, allowedValue := range sqlClaim.AllowedValues {
 		if allowedValue.AllowedString != "" {
-			allowedValues = append(allowedValues, model.AllowedValue{String: allowedValue.AllowedString})
+			stringValue := model.AllowedValue{}
+			err := stringValue.FromClaimAllowedValuesStringValue(allowedValue.AllowedString)
+			if err != nil {
+				logger.Warnf("Value %s could not be mapped to an allowed string value. Err: %v", allowedValue.AllowedString, err)
+				continue
+			}
+			allowedValues = append(allowedValues, stringValue)
 		}
 		if allowedValue.AllowedRolevalue.ProviderId != "" {
-			allowedValues = append(allowedValues, model.AllowedValue{RoleValue: model.RoleValue{Name: &allowedValue.AllowedRolevalue.Name, ProviderId: allowedValue.AllowedRolevalue.ProviderId}})
+			roleValue := model.AllowedValue{}
+			err := roleValue.FromClaimAllowedValuesRoleValue(model.RoleValue{Name: &allowedValue.AllowedRolevalue.Name, ProviderId: allowedValue.AllowedRolevalue.ProviderId})
+			if err != nil {
+				logger.Warnf("Value %s could not be mapped to an allowed role value. Err: %v", allowedValue.AllowedRolevalue, err)
+				continue
+			}
+
+			allowedValues = append(allowedValues, roleValue)
 		}
 	}
-	claim.AllowedValues = allowedValues
+	claim.AllowedValues = &allowedValues
 	return claim
 }

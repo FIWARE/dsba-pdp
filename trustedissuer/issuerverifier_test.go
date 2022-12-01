@@ -228,9 +228,9 @@ func validClaims() *[]model.Claim {
 	claims := []model.Claim{
 		{
 			Name: "roles",
-			AllowedValues: []model.AllowedValue{
+			AllowedValues: &[]model.AllowedValue{
 				{
-					String: "MY_ROLE",
+					Union: []byte("MY_ROLE"),
 				},
 			},
 		},

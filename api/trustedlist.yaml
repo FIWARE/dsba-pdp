@@ -23,8 +23,6 @@ paths:
       responses:
         '204':
           description: Successfully verified the request.
-        '400':
-          $ref: '#/components/schemas/ProblemDetails'
         '403':
           description: Issuer verfication was not successfull
           content:
@@ -47,10 +45,6 @@ paths:
       responses:
         '201':
           description: Successfully created the issuer.
-        '400':
-          $ref: '#/components/schemas/ProblemDetails'
-        '409':
-          $ref: '#/components/schemas/ProblemDetails'
     get:
       tags:
         - issuer
@@ -92,8 +86,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrustedIssuer'
-        '404':
-          $ref: '#/components/schemas/ProblemDetails'
     delete:
       tags:
         - issuer
@@ -104,8 +96,6 @@ paths:
       responses:
         '204':
           description: Successfully deleted
-        '404':
-          $ref: '#/components/schemas/ProblemDetails'
     put:
       tags:
         - issuer
@@ -122,10 +112,6 @@ paths:
       responses:
         '204':
           description: Successfully updated the issuer.
-        '400':
-          $ref: '#/components/schemas/ProblemDetails'
-        '409':
-          $ref: '#/components/schemas/ProblemDetails'
 components:
   parameters:
     Id:
@@ -225,25 +211,7 @@ components:
             - $ref: '#/components/schemas/CustomerCredentialSubject'
             - $ref: '#/components/schemas/IShareCustomerCredentialSubject'
     ProblemDetails:
-      description: Error description, as specified in RFC7807
       type: object
-      properties:
-        type:
-          type: string
-          format: uri
-          example: my:resolvable:error:type
-        title:
-          type: string
-          example: Unknown issuer.
-        status:
-          type: number
-          example: 401
-        detail:
-          type: string
-          example: No such issuer was registered.
-        instance:
-          type: string
-          format: uri
     TimeRange:
       type: object
       properties:
@@ -293,12 +261,11 @@ components:
         allowedValues:
           type: array
           items:
-            type: 
-              oneOf:
-                - string
-                - number
-                - boolean
-                - object
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: object
           example:
             - true
             - 12

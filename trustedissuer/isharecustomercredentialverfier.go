@@ -51,28 +51,29 @@ func checkRoles(roleClaim model.Claim, roles []model.Role) (decision model.Decis
 		return model.Decision{Decision: true, Reason: "No restrictions for the roles  exist."}, httpErr
 	}
 
-	if len(roleClaim.AllowedValues) == 0 {
+	if roleClaim.AllowedValues == nil || len(*roleClaim.AllowedValues) == 0 {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any definition of roles.", logging.PrettyPrintObject(roleClaim))}, httpErr
 	}
 
 	generalAllowedRoles := []string{}
 	allowedByProvider := map[string]*[]string{}
 
-	for _, allowedRole := range roleClaim.AllowedValues {
-		if allowedRole.String != "" {
-			generalAllowedRoles = append(generalAllowedRoles, allowedRole.String)
+	for _, allowedRole := range *roleClaim.AllowedValues {
+		if v, err := allowedRole.AsAllowedValuesStringValue(); err == nil && v != "" {
+			generalAllowedRoles = append(generalAllowedRoles, v)
 		}
-		if allowedRole.RoleValue != (model.RoleValue{}) {
-			allowedRoles, ok := allowedByProvider[allowedRole.RoleValue.ProviderId]
+		if v, err := allowedRole.AsAllowedValuesRoleValue(); err == nil && v != (model.RoleValue{}) {
+			allowedRoles, ok := allowedByProvider[v.ProviderId]
 			if ok {
-				*allowedRoles = append(*allowedRoles, *allowedRole.RoleValue.Name...)
+				*allowedRoles = append(*allowedRoles, *v.Name...)
 			} else {
-				if allowedRole.RoleValue.Name != nil {
-					allowedRoles = allowedRole.RoleValue.Name
+				if v.Name != nil {
+					allowedRoles = v.Name
 				}
 			}
-			allowedByProvider[allowedRole.RoleValue.ProviderId] = allowedRoles
+			allowedByProvider[v.ProviderId] = allowedRoles
 		}
+
 	}
 
 	for _, role := range roles {
@@ -136,13 +137,15 @@ func checkAuthorizationRegistries(arClaim model.Claim, authorizationRegistries *
 		return model.Decision{Decision: true, Reason: "No restrictions for the ar exist."}, httpErr
 	}
 
-	if len(arClaim.AllowedValues) == 0 {
+	if arClaim.AllowedValues == nil || len(*arClaim.AllowedValues) == 0 {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any definition of an ar.", logging.PrettyPrintObject(arClaim))}, httpErr
 	}
 
 	allowedRegistries := []string{}
-	for _, ar := range arClaim.AllowedValues {
-		allowedRegistries = append(allowedRegistries, ar.String)
+	for _, ar := range *arClaim.AllowedValues {
+		if v, err := ar.AsAllowedValuesStringValue(); err == nil && v != "" {
+			allowedRegistries = append(allowedRegistries, v)
+		}
 	}
 
 	for registry := range *authorizationRegistries {

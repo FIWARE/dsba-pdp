@@ -1,6 +1,7 @@
 package trustedissuer
 
 import (
+	"encoding/json"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -18,12 +19,12 @@ func TestCheckRoles(t *testing.T) {
 
 	tests := []test{
 		{"Allow subjects if not claim is configured.", []model.Claim{}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{}}, true, model.HttpError{}},
-		{"Allow subjects if only other claims are configured.", []model.Claim{{Name: "OTHER_CLAIM", AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{}}, true, model.HttpError{}},
-		{"Allow subjects if claim allows the assigned role.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, true, model.HttpError{}},
-		{"Allow if more roles are allowed.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "CUSTOMER"}, {String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"EMPLOYEE"}}}}, true, model.HttpError{}},
-		{"Reject if claim has empty allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
-		{"Reject if claim has different role allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
-		{"Reject if subject has additional roles.", []model.Claim{{Name: ROLES_KEY, AllowedValues: []model.AllowedValue{{String: "EMPLOYEE"}}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER", "EMPLOYEE"}}}}, false, model.HttpError{}},
+		{"Allow subjects if only other claims are configured.", []model.Claim{{Name: "OTHER_CLAIM", AllowedValues: &[]model.AllowedValue{getAllowedCustomerValue()}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{}}, true, model.HttpError{}},
+		{"Allow subjects if claim allows the assigned role.", []model.Claim{{Name: ROLES_KEY, AllowedValues: &[]model.AllowedValue{getAllowedCustomerValue()}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, true, model.HttpError{}},
+		{"Allow if more roles are allowed.", []model.Claim{{Name: ROLES_KEY, AllowedValues: &[]model.AllowedValue{getAllowedCustomerValue(), getAllowedEmployeeValue()}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"EMPLOYEE"}}}}, true, model.HttpError{}},
+		{"Reject if claim has empty allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: &[]model.AllowedValue{}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
+		{"Reject if claim has different role allowed values.", []model.Claim{{Name: ROLES_KEY, AllowedValues: &[]model.AllowedValue{getAllowedEmployeeValue()}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER"}}}}, false, model.HttpError{}},
+		{"Reject if subject has additional roles.", []model.Claim{{Name: ROLES_KEY, AllowedValues: &[]model.AllowedValue{getAllowedEmployeeValue()}}}, model.CredentialSubject{Id: "mySubject", Roles: []model.Role{{Name: []string{"CUSTOMER", "EMPLOYEE"}}}}, false, model.HttpError{}},
 	}
 
 	for _, tc := range tests {
@@ -36,4 +37,20 @@ func TestCheckRoles(t *testing.T) {
 			t.Errorf("%s: Role check returned wrong decision. Expected: %v, Actual: %v", tc.testName, tc.expectedDecision, decision)
 		}
 	}
+}
+
+func getAllowedCustomerValue() model.AllowedValue {
+	jsonData, _ := json.Marshal("CUSTOMER")
+	allowedValue := model.AllowedValue{
+		Union: jsonData,
+	}
+	return allowedValue
+}
+
+func getAllowedEmployeeValue() model.AllowedValue {
+	jsonData, _ := json.Marshal("EMPLOYEE")
+	allowedValue := model.AllowedValue{
+		Union: jsonData,
+	}
+	return allowedValue
 }

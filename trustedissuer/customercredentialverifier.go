@@ -37,7 +37,7 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 		return model.Decision{Decision: true, Reason: "No restrictions for roles exist."}, err
 	}
 
-	if len(roleClaim.AllowedValues) == 0 {
+	if len(*roleClaim.AllowedValues) == 0 {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any role assignment.", logging.PrettyPrintObject(roleClaim))}, err
 	}
 
@@ -54,12 +54,12 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 
 func isRoleAllowed(roleNames []string, roleClaim model.Claim) (decision model.Decision) {
 	allowedRoles := []string{}
-	for _, allowedValue := range roleClaim.AllowedValues {
-		if allowedValue.String != "" {
-			allowedRoles = append(allowedRoles, allowedValue.String)
+	for _, allowedValue := range *roleClaim.AllowedValues {
+		if v, err := allowedValue.AsAllowedValuesStringValue(); err == nil && v != "" {
+			allowedRoles = append(allowedRoles, v)
 		}
-		if allowedValue.RoleValue != (model.RoleValue{}) && allowedValue.RoleValue.Name != nil {
-			allowedRoles = append(allowedRoles, *allowedValue.RoleValue.Name...)
+		if v, err := allowedValue.AsAllowedValuesRoleValue(); err == nil && v != (model.RoleValue{}) {
+			allowedRoles = append(allowedRoles, *v.Name...)
 		}
 	}
 	for _, roleName := range roleNames {

@@ -24,15 +24,7 @@ func getCapability(validFor *model.TimeRange, credentialType string, claims *[]m
 }
 
 func getClaim(name string, allowedValues []model.AllowedValue) model.Claim {
-	return model.Claim{Name: name, AllowedValues: allowedValues}
-}
-
-func getStringValue(v string) model.AllowedValue {
-	return model.AllowedValue{String: v}
-}
-
-func getRoleValue(providerId string, roleNames *[]string) model.AllowedValue {
-	return model.AllowedValue{RoleValue: model.RoleValue{Name: roleNames, ProviderId: providerId}}
+	return model.Claim{Name: name, AllowedValues: &allowedValues}
 }
 
 func getTimeRange(from string, to string) *model.TimeRange {
@@ -84,30 +76,30 @@ func getCreationTests() []creationTest {
 			getIssuer("myTestIssuer", &[]model.Capability{
 				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{
 					getClaim("TestClaim",
-						[]model.AllowedValue{getStringValue("string")})})}), model.HttpError{}},
+						[]model.AllowedValue{getAllowedStringValue("string")})})}), model.HttpError{}},
 		{"Successfully create issuer with role claim.",
 			getIssuer("myTestIssuer", &[]model.Capability{
 				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{
 					getClaim("TestClaim",
-						[]model.AllowedValue{getRoleValue("MyProvider", &[]string{"ROLE_NAME"})})})}), model.HttpError{}},
+						[]model.AllowedValue{getAllowedStringValue("{\"providerId\":\"MyProvider\", \"name\":[\"ROLE_NAME\"]}")})})}), model.HttpError{}},
 		{"Successfully create issuer with multiple roles.",
 			getIssuer("myTestIssuer", &[]model.Capability{
 				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{
 					getClaim("TestClaim",
-						[]model.AllowedValue{getRoleValue("MyProvider", &[]string{"ROLE_NAME", "ANOTHER_ROLE"})})})}), model.HttpError{}},
+						[]model.AllowedValue{getAllowedStringValue("{\"providerId\":\"MyProvider\", \"name\":[\"ROLE_NAME\", \"ANOTHER_ROLE\"]}")})})}), model.HttpError{}},
 		{"Successfully create issuer with multiple allowed values.",
 			getIssuer("myTestIssuer", &[]model.Capability{
 				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{
-					getClaim("TestClaim", []model.AllowedValue{getStringValue("string"), getRoleValue("MyProvider", &[]string{"ROLE_NAME", "ANOTHER_ROLE"})})})}), model.HttpError{}},
+					getClaim("TestClaim", []model.AllowedValue{getAllowedStringValue("string"), getAllowedStringValue("{\"providerId\":\"MyProvider\", \"name\":[\"ROLE_NAME\", \"ANOTHER_ROLE\"]}")})})}), model.HttpError{}},
 		{"Successfully create issuer with multiple claims.",
 			getIssuer("myTestIssuer", &[]model.Capability{
 				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{
-					getClaim("FirstClaim", []model.AllowedValue{getStringValue("string")}),
-					getClaim("SecondClaim", []model.AllowedValue{getRoleValue("MyProvider", &[]string{"ROLE_NAME", "ANOTHER_ROLE"})})})}), model.HttpError{}},
+					getClaim("FirstClaim", []model.AllowedValue{getAllowedStringValue("string")}),
+					getClaim("SecondClaim", []model.AllowedValue{getAllowedStringValue("{\"providerId\":\"MyProvider\", \"name\":[\"ROLE_NAME\", \"ANOTHER_ROLE\"]}")})})}), model.HttpError{}},
 		{"Successfully create issuer with multiple capabilities",
 			getIssuer("myTestIssuer", &[]model.Capability{
-				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{getClaim("FirstClaim", []model.AllowedValue{getStringValue("string")})}),
-				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "AnotherCredential", &[]model.Claim{getClaim("AnotherClaim", []model.AllowedValue{getStringValue("string")})}),
+				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "CustomerCredential", &[]model.Claim{getClaim("FirstClaim", []model.AllowedValue{getAllowedStringValue("string")})}),
+				getCapability(getTimeRange("2021-21-12", "2023-21-12"), "AnotherCredential", &[]model.Claim{getClaim("AnotherClaim", []model.AllowedValue{getAllowedStringValue("string")})}),
 			}), model.HttpError{}},
 		{"Fail if not issuer id is provided.",
 			getIssuer("", &[]model.Capability{}), model.HttpError{Status: http.StatusBadRequest, Message: "Issuers need an ID.", RootError: nil}},
