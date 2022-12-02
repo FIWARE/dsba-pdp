@@ -84,7 +84,6 @@ func TestDecide(t *testing.T) {
 		{"Allow PUT request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
 		{"Allow PATCH request for iShareTokens when permit is answered.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: true}, model.HttpError{}, []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
 
-		{"Requests without a role issuer should be denied.", getNoIssuerDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{}},
 		{"Requests without a role should be denied.", getNoRoleDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{}},
 
 		{"Deny GET request when no permit is answered.", getDSBAToken(), "/ngsi-ld/v1/entities?type=ENTITY", "GET", nil, "myPdp", getActiveDeny(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, []model.Policy{getPolicy("ENTITY", []string{"*"}, []string{"*"}, "GET")}},
