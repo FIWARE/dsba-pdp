@@ -51,9 +51,9 @@ func GinHandlerFunc() gin.HandlerFunc {
 			errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
 
 			if errorMessage != "" {
-				Log().Warnf("Request [%s]%s took %d ms - Result: %s - %s", method, path, latency, statusCode, errorMessage)
+				Log().Warnf("Request [%s]%s took %d ms - Result: %d - %s", method, path, latency, statusCode, errorMessage)
 			} else {
-				Log().Infof("Request [%s]%s took %d ms - Result: %s", method, path, latency, statusCode)
+				Log().Infof("Request [%s]%s took %d ms - Result: %d", method, path, latency, statusCode)
 			}
 		}
 	}
