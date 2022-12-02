@@ -254,7 +254,7 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) getTokenFromAR(authorizat
 
 	if tokenResponse == nil || tokenResponse.StatusCode != 200 || tokenResponse.Body == nil {
 		if tokenResponse != nil && tokenResponse.Body != nil {
-			logger.Debugf("Response body was %s.", tokenResponse.Body)
+			logger.Debugf("Response was %d - %s.", tokenResponse.StatusCode, tokenResponse.Body)
 		}
 		logger.Debugf("Failed to decode token response from ar at: %s", authorizationRegistry.GetTokenAddress())
 		return accessToken, model.HttpError{Status: http.StatusBadGateway, Message: "Did not receive a valid body from the idp.", RootError: err}
