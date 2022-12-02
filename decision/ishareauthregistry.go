@@ -244,6 +244,8 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) getTokenFromAR(authorizat
 		"client_id":             {iShareClientId},
 	}
 
+	logger.Debugf("Accessing ar %s with id %s and token %s", authorizationRegistry.GetTokenAddress, iShareClientId, signedToken)
+
 	// get the token
 	tokenResponse, err := globalHttpClient.PostForm(authorizationRegistry.GetTokenAddress(), requestData)
 	if err != nil {
@@ -305,7 +307,6 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) generateSignedToken(arId 
 			err = errors.New("invalid_key_configured")
 		}
 	}()
-	logger.Debugf("T %v", iShareAuthRegistry.signingKey)
 	// sign the token
 	signedToken, err = jwtToken.SignedString(iShareAuthRegistry.signingKey)
 	if err != nil {
