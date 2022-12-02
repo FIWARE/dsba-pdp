@@ -164,6 +164,8 @@ To run the trusted issuer service with persistence, provide the following ENV-Va
 |   SERVER_PORT  |       Port that the pdp will listen at. | ```8080```  |
 |   JSON_LOGGING_ENABLED  |    Should the pdp log in json format? | ```true```  |
 |   LOG_LEVEL  |    Log level to be used. | ```INFO```  |
+|   LOG_REQUESTS  |    If enabled incoming requests will be logged. | ```true```  |
+|   LOG_SKIP_PATHS  |    A comma seperated list of paths that should be excluded from request logging. |  |
 |   ISHARE_ENABLED  |    Should the pdp use the iShare-authorization registry? | ```true```  |
 |   ISHARE_CERTIFICATE_PATH  |       Path to read the iShare certificate from. | ```/iShare/certificate.pem```  |
 |   ISHARE_KEY_PATH  |       Path to read the iShare key from. | ```/iShare/key.pem```  |
