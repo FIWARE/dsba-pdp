@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,8 +16,47 @@ import (
  */
 var logger = logrus.New()
 
+var skipPaths []string = []string{}
+var logRequests bool = true
+
 func Log() *logrus.Logger {
 	return logger
+}
+
+func GinHandlerFunc() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !logRequests {
+			c.Next()
+		} else {
+			// Start timer
+			start := time.Now()
+			path := c.Request.URL.Path
+			raw := c.Request.URL.RawQuery
+			if raw != "" {
+				path = path + "?" + raw
+			}
+
+			// Process request
+			c.Next()
+
+			if contains(skipPaths, path) {
+				return
+			}
+
+			// Stop timer
+			end := time.Now()
+			latency := end.Sub(start)
+			method := c.Request.Method
+			statusCode := c.Writer.Status()
+			errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
+
+			if errorMessage != "" {
+				Log().Warnf("Request [%s]%s took %d ms - Result: %s - %s", method, path, latency, statusCode, errorMessage)
+			} else {
+				Log().Infof("Request [%s]%s took %d ms - Result: %s", method, path, latency, statusCode)
+			}
+		}
+	}
 }
 
 /**
@@ -53,4 +95,24 @@ func init() {
 	} else {
 		logger.SetFormatter(&logrus.TextFormatter{})
 	}
+
+	skipPathsEnv := os.Getenv("LOG_SKIP_PATHS")
+	logRequests, err = strconv.ParseBool(os.Getenv("LOG_REQUESTS"))
+	if err != nil {
+		logger.Warnf("Invalid LOG_REQUESTS configured, will enable request logging by default. Err: %v.", err)
+	}
+
+	if skipPathsEnv != "" {
+		skipPaths = strings.Split(skipPathsEnv, ",")
+		logger.Infof("Will skip request logging for paths %s.", skipPaths)
+	}
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
