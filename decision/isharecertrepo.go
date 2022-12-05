@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
 )
 
-const SatelliteFingerprintEnvVar = "SATELLITE_FINGERPRINT"
+const FingerprintsListEnvVar = "TRUSTED_FINGERPRINTS_LIST"
 const SatellitUrlEnvVar = "SATELLITE_URL"
 const SatelliteIdEnvVar = "SATELLITE_ID"
 
@@ -25,22 +26,23 @@ type TrustedParticipantRepository interface {
 }
 
 type IShareTrustedParticipantRepository struct {
-	satelliteAr          *model.AuthorizationRegistry
-	satelliteFingerprint string
-	tokenFunc            TokenFunc
-	parserFunc           TrustedListParseFunc
+	satelliteAr         *model.AuthorizationRegistry
+	trustedFingerprints []string
+	tokenFunc           TokenFunc
+	parserFunc          TrustedListParseFunc
 }
 
 func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedListParseFunc) *IShareTrustedParticipantRepository {
 
 	trustedParticipantRepo := new(IShareTrustedParticipantRepository)
 
-	satelliteFingerprint := os.Getenv(SatelliteFingerprintEnvVar)
-	if satelliteFingerprint == "" {
-		logger.Fatal("No fingerprint configured for the sattelite.")
+	fingerprintsString := os.Getenv(FingerprintsListEnvVar)
+	if fingerprintsString == "" {
+		logger.Fatal("No initial fingerprints configured for the sattelite.")
 		return nil
 	}
-	trustedParticipantRepo.satelliteFingerprint = satelliteFingerprint
+
+	trustedParticipantRepo.trustedFingerprints = strings.Split(fingerprintsString, ",")
 
 	satelliteUrlEnv := os.Getenv(SatellitUrlEnvVar)
 	if satelliteUrlEnv != "" {
@@ -62,7 +64,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
-	if certificateFingerPrint == icr.satelliteFingerprint {
+	if contains(icr.trustedFingerprints, certificateFingerPrint) {
 		logger.Debug("The presented certificate is the pre-configured sattelite certificate.")
 		return true
 	}
@@ -132,4 +134,13 @@ func (icr IShareTrustedParticipantRepository) GetTrustedList() (trustedList *[]m
 func buildCertificateFingerprint(certificate *x509.Certificate) (sha256fingerprint string) {
 	fingerprintBytes := sha256.Sum256(certificate.Raw)
 	return string(fingerprintBytes[:])
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

@@ -247,7 +247,7 @@ func TestNewIShareAuthorizationRegistry(t *testing.T) {
 		}
 
 		ishareFileAccessor = &mockFileAccessor{tc.mockFiles, tc.mockErrors}
-		t.Setenv(SatelliteFingerprintEnvVar, "myFingerprint")
+		t.Setenv(FingerprintsListEnvVar, "myFingerprint")
 		t.Setenv(IShareEnabledVar, tc.isEnabled)
 		t.Setenv(CertificatePathVar, tc.testCertPath)
 		t.Setenv(KeyPathVar, tc.testKeyPath)
