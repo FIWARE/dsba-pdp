@@ -13,7 +13,7 @@ import (
 	"github.com/wistefan/dsba-pdp/model"
 )
 
-const FingerprintsListEnvVar = "TRUSTED_FINGERPRINTS_LIST"
+const FingerprintsListEnvVar = "ISHARE_TRUSTED_FINGERPRINTS_LIST"
 const SatellitUrlEnvVar = "SATELLITE_URL"
 const SatelliteIdEnvVar = "SATELLITE_ID"
 
