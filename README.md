@@ -1,4 +1,4 @@
-# DBSA PDP
+# DSBA PDP
 
 MVP implementation of a Policy-Desicion Point, defiend by the [DSBA-MVF](https://hesusruiz.github.io/dsbamvf).
 
