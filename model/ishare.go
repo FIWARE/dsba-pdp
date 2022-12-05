@@ -111,6 +111,22 @@ type AuthorizationRegistry struct {
 	DelegationPath string `json:"delegationPath,omitempty"`
 }
 
+type TrustedParticipant struct {
+	Subject                string `json:"subject"`
+	CertificateFingerprint string `json:"certificate_fingerprint"`
+	Validity               string `json:"validity"`
+	Status                 string `json:"status"`
+}
+
+type TrustedListToken struct {
+	TrustedList *[]TrustedParticipant `json:"trusted_list"`
+	jwt.RegisteredClaims
+}
+
+type TrustedListResponse struct {
+	TrustedListToken string `json:"trusted_list_token"`
+}
+
 func (ar AuthorizationRegistry) GetTokenAddress() string {
 	if ar.TokenPath == "" {
 		return ar.Host + "/connect/token"

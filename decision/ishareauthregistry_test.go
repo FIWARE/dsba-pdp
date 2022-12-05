@@ -41,8 +41,8 @@ func (mhc *mockHttpClient) PostForm(url string, data url.Values) (*http.Response
 
 func getIShareTestRegistry(key *rsa.PrivateKey, certificates []string) *IShareAuthorizationRegistry {
 
-	tokenParser := TokenParser{Clock: &mockClock{}}
-	registry := IShareAuthorizationRegistry{signingKey: key, certificateArray: certificates, pdpRegistry: getDefaultTestAR(), tokenParser: tokenParser}
+	tokenHandler := &TokenHandler{signingKey: key, certificateArray: certificates, Clock: &mockClock{}}
+	registry := IShareAuthorizationRegistry{pdpRegistry: getDefaultTestAR(), tokenHandler: tokenHandler}
 	return &registry
 }
 
@@ -142,7 +142,7 @@ func TestGetSigningKeyErrors(t *testing.T) {
 
 	tests := []test{
 		{"When file access fails, return an error.", nil, errors.New("access_denied"), errors.New("access_denied")},
-		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
+		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
 	}
 
 	for _, tc := range tests {
@@ -232,6 +232,7 @@ func TestNewIShareAuthorizationRegistry(t *testing.T) {
 		}
 
 		ishareFileAccessor = &mockFileAccessor{tc.mockFiles, tc.mockErrors}
+		t.Setenv(SatelliteFingerprintEnvVar, "myFingerprint")
 		t.Setenv(IShareEnabledVar, tc.isEnabled)
 		t.Setenv(CertificatePathVar, tc.testCertPath)
 		t.Setenv(KeyPathVar, tc.testKeyPath)
