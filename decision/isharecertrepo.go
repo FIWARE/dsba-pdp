@@ -20,7 +20,7 @@ var satelliteURL = "https://scheme.isharetest.net"
 var satelliteId = "EU.EORI.NL000000000"
 
 type TrustedParticipantRepository interface {
-	IsTrusted(certificate *x509.Certificate) (isTrusted bool, httpErr model.HttpError)
+	IsTrusted(certificate *x509.Certificate) (isTrusted bool)
 	GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError)
 }
 
@@ -60,16 +60,17 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	return trustedParticipantRepo
 }
 
-func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool, httpErr model.HttpError) {
+func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
 	if certificateFingerPrint == icr.satelliteFingerprint {
 		logger.Debug("The presented certificate is the pre-configured sattelite certificate.")
-		return true, httpErr
+		return true
 	}
 	logger.Debugf("Certificate is not the satellite, request the current list.")
 	trustedList, httpErr := icr.GetTrustedList()
 	if httpErr != (model.HttpError{}) {
-		return false, httpErr
+		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))
+		return false
 	}
 	for _, trustedParticipant := range *trustedList {
 		if trustedParticipant.CertificateFingerprint != certificateFingerPrint {
@@ -77,15 +78,15 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 		}
 		if trustedParticipant.Validity != "valid" {
 			logger.Debugf("The participant %s is not valid.", logging.PrettyPrintObject(trustedParticipant))
-			return false, httpErr
+			return false
 		}
 		if trustedParticipant.Status != "granted" {
 			logger.Debugf("The participant %s is not granted.", logging.PrettyPrintObject(trustedParticipant))
-			return false, httpErr
+			return false
 		}
-		return true, httpErr
+		return true
 	}
-	return false, httpErr
+	return false
 }
 
 func (icr IShareTrustedParticipantRepository) GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {

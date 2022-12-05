@@ -95,9 +95,9 @@ func NewTokenHandler() (tokenHandler *TokenHandler) {
 
 }
 
-func (tp *TokenHandler) parseIShareToken(tokenString string) (parsedToken *model.IShareToken, httpErr model.HttpError) {
+func (th *TokenHandler) parseIShareToken(tokenString string) (parsedToken *model.IShareToken, httpErr model.HttpError) {
 	token, err := jwt.ParseWithClaims(tokenString, &model.IShareToken{}, func(t *jwt.Token) (interface{}, error) {
-		return getKeyFromToken(t, tp.Clock)
+		return th.getKeyFromToken(t)
 	})
 
 	if err != nil {
@@ -110,9 +110,9 @@ func (tp *TokenHandler) parseIShareToken(tokenString string) (parsedToken *model
 
 }
 
-func (tcp *TokenHandler) parseTrustedListToken(tokenString string) (parsedToken *model.TrustedListToken, httpErr model.HttpError) {
+func (th *TokenHandler) parseTrustedListToken(tokenString string) (parsedToken *model.TrustedListToken, httpErr model.HttpError) {
 	token, err := jwt.ParseWithClaims(tokenString, &model.TrustedListToken{}, func(t *jwt.Token) (interface{}, error) {
-		return getKeyFromToken(t, tcp.Clock)
+		return th.getKeyFromToken(t)
 	})
 	if err != nil {
 		return parsedToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Was not able to parse token. Error: %v", err), RootError: err}
@@ -123,7 +123,7 @@ func (tcp *TokenHandler) parseTrustedListToken(tokenString string) (parsedToken 
 	return token.Claims.(*model.TrustedListToken), httpErr
 }
 
-func getKeyFromToken(token *jwt.Token, clock Clock) (key *rsa.PublicKey, err error) {
+func (th *TokenHandler) getKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, err error) {
 
 	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 		return nil, fmt.Errorf("invalid_token_method")
@@ -161,14 +161,18 @@ func getKeyFromToken(token *jwt.Token, clock Clock) (key *rsa.PublicKey, err err
 			return nil, err
 		}
 		if i == lastCert {
-			rootPool.AddCert(parsedCert)
+			if !th.trustedParticipantRepository.IsTrusted(parsedCert) {
+				logger.Warnf("Only trusted CAs are accepted.")
+			} else {
+				rootPool.AddCert(parsedCert)
+			}
 			continue
 		}
 		intermediatePool.AddCert(parsedCert)
 	}
 
-	logger.Debugf("Its now %v", clock.Now())
-	opts := x509.VerifyOptions{Roots: rootPool, Intermediates: intermediatePool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}, CurrentTime: clock.Now()}
+	logger.Debugf("Its now %v", th.Clock.Now())
+	opts := x509.VerifyOptions{Roots: rootPool, Intermediates: intermediatePool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}, CurrentTime: th.Clock.Now()}
 	if _, err := clientCert.Verify(opts); err != nil {
 		logger.Warnf("The cert could not be verified.")
 		return nil, err
