@@ -168,18 +168,6 @@ func getBadGatewayError() model.HttpError {
 	return model.HttpError{Status: http.StatusBadGateway}
 }
 
-func getNoIssuerDSBAToken() model.DSBAToken {
-	return model.DSBAToken{
-		VerifiableCredential: model.DSBAVerifiableCredential{
-			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{
-					{Name: []string{"CUSTOMER"}, Target: "myPdp"},
-				},
-			},
-		},
-	}
-}
-
 func getNoRoleDSBAToken() model.DSBAToken {
 	return model.DSBAToken{
 		VerifiableCredential: model.DSBAVerifiableCredential{
