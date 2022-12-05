@@ -1,10 +1,10 @@
-# DBSA PDP
+# DSBA PDP
 
 MVP implementation of a Policy-Desicion Point, defiend by the [DSBA-MVF](https://hesusruiz.github.io/dsbamvf).
 
 ## Quick start
 
-The PDP will run in the context of an iShare-Dataprovider, therefor you need to supplie the certificate and key, together with the client-id.
+The PDP will run in the context of an iShare-Dataprovider, therefor you need to supply the certificate and key, together with the client-id.
 The certificate needs to be the full chain in pem-format, the key needs to be an unencrypted rsa-privatekey. See the (invalid!) examples in the [examples-folder](./examples/).   
 The files need to be mounted to the container, default paths are /iShare/cert.pem and /iShare/key.pem. The Id has to be provided via the environment variable ```ISHARE_CLIENT_ID``. The default will use the authorization-registry at https://ar.isharetest.net .
 
