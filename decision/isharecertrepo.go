@@ -64,6 +64,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
+	logger.Debugf("Checking certificate with fingerprint %s.", certificateFingerPrint)
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
 		logger.Debug("The presented certificate is the pre-configured satellite certificate.")
 		return true
@@ -88,6 +89,7 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 		}
 		return true
 	}
+	logger.Debugf("Was not able to find an entry for fingerprint %s.", certificateFingerPrint)
 	return false
 }
 
