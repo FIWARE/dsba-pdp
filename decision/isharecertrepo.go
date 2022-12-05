@@ -38,7 +38,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 	fingerprintsString := os.Getenv(FingerprintsListEnvVar)
 	if fingerprintsString == "" {
-		logger.Fatal("No initial fingerprints configured for the sattelite.")
+		logger.Fatal("No initial fingerprints configured for the satellite.")
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	}
 	ar := model.AuthorizationRegistry{Id: satelliteId, Host: satelliteURL}
 
-	logger.Debugf("Using sattelite %s as trust anchor.", logging.PrettyPrintObject(ar))
+	logger.Debugf("Using satellite %s as trust anchor.", logging.PrettyPrintObject(ar))
 	trustedParticipantRepo.satelliteAr = &ar
 	trustedParticipantRepo.tokenFunc = tokenFunc
 	trustedParticipantRepo.parserFunc = parserFunc
@@ -65,7 +65,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
-		logger.Debug("The presented certificate is the pre-configured sattelite certificate.")
+		logger.Debug("The presented certificate is the pre-configured satellite certificate.")
 		return true
 	}
 	logger.Debugf("Certificate is not the satellite, request the current list.")
@@ -94,7 +94,7 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 func (icr IShareTrustedParticipantRepository) GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
 	accessToken, httpErr := icr.tokenFunc(icr.satelliteAr)
 	if httpErr != (model.HttpError{}) {
-		logger.Debugf("Was not able to get a token from the sattelite at %s.", logging.PrettyPrintObject(icr.satelliteAr))
+		logger.Debugf("Was not able to get a token from the satellite at %s.", logging.PrettyPrintObject(icr.satelliteAr))
 		return trustedList, httpErr
 	}
 
