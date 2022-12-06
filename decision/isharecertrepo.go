@@ -19,8 +19,8 @@ import (
 )
 
 const FingerprintsListEnvVar = "ISHARE_TRUSTED_FINGERPRINTS_LIST"
-const SatellitUrlEnvVar = "SATELLITE_URL"
-const SatelliteIdEnvVar = "SATELLITE_ID"
+const SatellitUrlEnvVar = "ISHARE_TRUST_ANCHOR_URL"
+const SatelliteIdEnvVar = "ISHARE_TRUST_ANCHOR_ID"
 const TrustedListUpdateRateEnvVar = "ISHARE_TRUSTED_LIST_UPDATE_RATE"
 
 var satelliteURL = "https://scheme.isharetest.net"
