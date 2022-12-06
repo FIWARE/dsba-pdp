@@ -60,7 +60,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 	updateRateInSEnv, err := strconv.Atoi(os.Getenv(TrustedListUpdateRateEnvVar))
 	if err != nil {
-		logger.Warnf("Invalid trustedlist update rate configured. Err: %s", logging.PrettyPrintObject(err))
+		logger.Warnf("Invalid trustedlist update rate configured. Using the default %ds. Err: %s", updateRateInS, logging.PrettyPrintObject(err))
 	} else if updateRateInSEnv > 0 {
 		updateRateInS = updateRateInSEnv
 	}
