@@ -172,6 +172,16 @@ func buildCertificateFingerprint(certificate *x509.Certificate) (fingerprint []b
 	logger.Debugf("Sum1 %s", sha1.Sum(certificate.Raw))
 
 	fingerprintBytes := sha256.Sum256(certificate.Raw)
+
+	var buf bytes.Buffer
+	for i, f := range fingerprintBytes {
+		if i > 0 {
+			fmt.Fprintf(&buf, ":")
+		}
+		fmt.Fprintf(&buf, "%02X", f)
+	}
+	fmt.Printf("Fingerprint: %s\n", buf.String())
+
 	return fingerprintBytes[:]
 }
 
