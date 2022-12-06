@@ -1,6 +1,7 @@
 package decision
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
@@ -32,7 +33,7 @@ type TrustedParticipantRepository interface {
 
 type IShareTrustedParticipantRepository struct {
 	satelliteAr         *model.AuthorizationRegistry
-	trustedFingerprints []string
+	trustedFingerprints [][]byte
 	tokenFunc           TokenFunc
 	parserFunc          TrustedListParseFunc
 }
@@ -47,7 +48,12 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 		return nil
 	}
 
-	trustedParticipantRepo.trustedFingerprints = strings.Split(fingerprintsString, ",")
+	trustedFingerprints := [][]byte{}
+	for _, fingerPrint := range strings.Split(fingerprintsString, ",") {
+		trustedFingerprints = append(trustedFingerprints, []byte(fingerPrint))
+	}
+
+	trustedParticipantRepo.trustedFingerprints = trustedFingerprints
 
 	satelliteUrlEnv := os.Getenv(SatellitUrlEnvVar)
 	if satelliteUrlEnv != "" {
@@ -99,7 +105,7 @@ func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx cont
 		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))
 		return
 	}
-	updatedFingerPrints := []string{}
+	updatedFingerPrints := [][]byte{}
 	for _, trustedParticipant := range *trustedList {
 
 		if trustedParticipant.Validity != "valid" {
@@ -110,7 +116,7 @@ func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx cont
 			logger.Debugf("The participant %s is not granted.", logging.PrettyPrintObject(trustedParticipant))
 			continue
 		}
-		updatedFingerPrints = append(updatedFingerPrints, trustedParticipant.CertificateFingerprint)
+		updatedFingerPrints = append(updatedFingerPrints, []byte(trustedParticipant.CertificateFingerprint))
 	}
 	icr.trustedFingerprints = updatedFingerPrints
 	logger.Debugf("Updated trusted fingerprints to: %s", icr.trustedFingerprints)
@@ -156,14 +162,14 @@ func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]m
 	return parsedToken.TrustedList, httpErr
 }
 
-func buildCertificateFingerprint(certificate *x509.Certificate) (sha256fingerprint string) {
+func buildCertificateFingerprint(certificate *x509.Certificate) (fingerprint []byte) {
 	fingerprintBytes := sha256.Sum256(certificate.Raw)
-	return string(fingerprintBytes[:])
+	return fingerprintBytes[:]
 }
 
-func contains(s []string, e string) bool {
+func contains(s [][]byte, e []byte) bool {
 	for _, a := range s {
-		if a == e {
+		if bytes.Equal(a, e) {
 			return true
 		}
 	}
