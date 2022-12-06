@@ -88,6 +88,8 @@ func NewTokenHandler() (tokenHandler *TokenHandler) {
 	tokenHandler.signingKey = signingKey
 	tokenHandler.certificateArray = certificateArray
 
+	tokenHandler.Clock = RealClock{}
+
 	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.getTokenFromAR, tokenHandler.parseTrustedListToken)
 	tokenHandler.trustedParticipantRepository = trustedParticipantRepository
 
