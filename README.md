@@ -148,22 +148,11 @@ The service provides the following configuration options:
 
 | Name | Description | Default |
 |------|-------------|---------|
-|   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
-|   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
-|   MYSQL_DATABASE   |       Schema to be used0     |  ```dsba``` |
-|   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
-|   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
-
-
-# Persistence
-
-To run the trusted issuer service with persistence, provide the following ENV-Vars:
-
-| Name | Description | Default |
-|------|-------------|---------|
 |   SERVER_PORT  |       Port that the pdp will listen at. | ```8080```  |
 |   JSON_LOGGING_ENABLED  |    Should the pdp log in json format? | ```true```  |
 |   LOG_LEVEL  |    Log level to be used. | ```INFO```  |
+|   LOG_REQUESTS  |    If enabled incoming requests will be logged. | ```true```  |
+|   LOG_SKIP_PATHS  |    A comma seperated list of paths that should be excluded from request logging. |  |
 |   ISHARE_ENABLED  |    Should the pdp use the iShare-authorization registry? | ```true```  |
 |   ISHARE_CERTIFICATE_PATH  |       Path to read the iShare certificate from. | ```/iShare/certificate.pem```  |
 |   ISHARE_KEY_PATH  |       Path to read the iShare key from. | ```/iShare/key.pem```  |
@@ -172,6 +161,10 @@ To run the trusted issuer service with persistence, provide the following ENV-Va
 |   ISHARE_AUTHORIZATION_REGISTRY_URL  |       URL of the authorization registry. | ```https://ar.isharetest.net```  |
 |   ISHARE_DELEGATION_PATH  |      Path to be used for making delegation requests at the AR. | ```/delegation```  |
 |   ISHARE_TOKEN_PATH  |       Path to be used for making token requests at the AR. | ```/connect/token```  |
+|   ISHARE_TRUSTED_FINGERPRINTS_LIST  | Initial list of fingerprints for trusted cas. This will be overwritten after the first update from the trust anchor. | ``````  |
+|   ISHARE_TRUST_ANCHOR_URL  |  URL of the trust anchor service. | ```https://scheme.isharetest.net```  |
+|   ISHARE_TRUST_ANCHOR_ID  |   ID of the trust anchor service. | ```EU.EORI.NL000000000```  |
+|   ISHARE_TRUSTED_LIST_UPDATE_RATE  |  Frequncy of updates from the trust anchor. In s. | ```5```  |
 |   PROVIDER_ID  |       ID to be used as a (default) role provider when verfiying the issuer. | ```did:ebsi:myprovider```  |
 |   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
 |   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
@@ -179,7 +172,7 @@ To run the trusted issuer service with persistence, provide the following ENV-Va
 |   MYSQL_USERNAME   |       Username to be used for the MySql DB      | ```root``` |
 |   MYSQL_PASSWORD   |       Password to be used for the MySql DB      |  |
 
-In order to setup the schema, run the db-migrations container, configurable with the same environment-variables:
+In order to setup the schema, run the db-migrations container, configurable with the same (database-related) environment-variables:
 
 ```shell
   docker run quay.io/wi_stefan/dsba-db-migrations rel migrate

@@ -25,7 +25,9 @@ var logger = logging.Log()
  */
 func main() {
 
-	router := gin.Default()
+	router := gin.New()
+	// inject our logger
+	router.Use(logging.GinHandlerFunc(), gin.Recovery())
 
 	// health check
 	router.GET("/health", http.HealthReq)
@@ -49,6 +51,7 @@ func main() {
 	metrics.Use(router)
 
 	router.Run(fmt.Sprintf("0.0.0.0:%v", serverPort))
+
 	logger.Infof("Started router at %v", serverPort)
 }
 

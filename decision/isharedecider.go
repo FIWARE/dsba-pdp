@@ -31,9 +31,9 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 	verifiableCredential := token.VerifiableCredential
 	logger.Debugf("Received VC: %s,", logging.PrettyPrintObject(verifiableCredential))
 	logger.Debugf("Creating decision for request %s - %s.", requestType, originalAddress)
-	roleIssuer := verifiableCredential.Issuer
+	roleIssuer := isd.envConfig.ProviderId()
 	if roleIssuer == "" {
-		return model.Decision{Decision: false, Reason: fmt.Sprintf("The VC %s did not contain a valid iShare-role issuer.", logging.PrettyPrintObject(verifiableCredential))}, httpErr
+		return model.Decision{Decision: false, Reason: "No valid iShare-role issuer configured."}, httpErr
 	}
 
 	credentialsSubject := verifiableCredential.CredentialSubject
