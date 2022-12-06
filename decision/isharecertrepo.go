@@ -55,6 +55,8 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 	trustedParticipantRepo.trustedFingerprints = trustedFingerprints
 
+	logger.Debugf("Initially trusted fingerprints: %s.", trustedParticipantRepo.trustedFingerprints)
+
 	satelliteUrlEnv := os.Getenv(SatellitUrlEnvVar)
 	if satelliteUrlEnv != "" {
 		satelliteURL = satelliteUrlEnv
@@ -89,7 +91,7 @@ func (icr IShareTrustedParticipantRepository) scheduleTrustedListUpdate(updateRa
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
-	logger.Debugf("Checking certificate with fingerprint %s.", certificateFingerPrint)
+	logger.Debugf("Checking certificate with fingerprint %s.", string(certificateFingerPrint))
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
 		logger.Debug("The presented certificate is trusted.")
 		return true
