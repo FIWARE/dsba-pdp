@@ -163,7 +163,7 @@ func (th *TokenHandler) getKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 		if i == lastCert {
 			if !th.trustedParticipantRepository.IsTrusted(parsedCert) {
 				logger.Warnf("Only trusted CAs are accepted.")
-				return nil, errors.New("CA is not trusted.")
+				return nil, errors.New("untrusted_ca")
 			} else {
 				rootPool.AddCert(parsedCert)
 			}

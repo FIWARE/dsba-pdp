@@ -1,14 +1,18 @@
 package decision
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/procyon-projects/chrono"
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
 )
@@ -16,13 +20,14 @@ import (
 const FingerprintsListEnvVar = "ISHARE_TRUSTED_FINGERPRINTS_LIST"
 const SatellitUrlEnvVar = "SATELLITE_URL"
 const SatelliteIdEnvVar = "SATELLITE_ID"
+const TrustedListUpdateRateEnvVar = "ISHARE_TRUSTED_LIST_UPDATE_RATE"
 
 var satelliteURL = "https://scheme.isharetest.net"
 var satelliteId = "EU.EORI.NL000000000"
+var updateRateInS = 5
 
 type TrustedParticipantRepository interface {
 	IsTrusted(certificate *x509.Certificate) (isTrusted bool)
-	GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError)
 }
 
 type IShareTrustedParticipantRepository struct {
@@ -52,6 +57,13 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	if satelliteIdEnv != "" {
 		satelliteId = satelliteIdEnv
 	}
+
+	updateRateInSEnv, err := strconv.Atoi(os.Getenv(TrustedListUpdateRateEnvVar))
+	if err != nil {
+		logger.Warnf("Invalid trustedlist update rate configured. Err: %s", logging.PrettyPrintObject(err))
+	} else if updateRateInSEnv > 0 {
+		updateRateInS = updateRateInSEnv
+	}
 	ar := model.AuthorizationRegistry{Id: satelliteId, Host: satelliteURL}
 
 	logger.Debugf("Using satellite %s as trust anchor.", logging.PrettyPrintObject(ar))
@@ -59,41 +71,52 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	trustedParticipantRepo.tokenFunc = tokenFunc
 	trustedParticipantRepo.parserFunc = parserFunc
 
+	trustedParticipantRepo.scheduleTrustedListUpdate(updateRateInS)
+
 	return trustedParticipantRepo
+}
+
+func (icr IShareTrustedParticipantRepository) scheduleTrustedListUpdate(updateRateInS int) {
+	taskScheduler := chrono.NewDefaultTaskScheduler()
+	taskScheduler.ScheduleAtFixedRate(icr.updateTrustedFingerprints, time.Duration(time.Duration(updateRateInS).Seconds()))
 }
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
 	logger.Debugf("Checking certificate with fingerprint %s.", certificateFingerPrint)
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
-		logger.Debug("The presented certificate is the pre-configured satellite certificate.")
+		logger.Debug("The presented certificate is trusted.")
 		return true
 	}
-	logger.Debugf("Certificate is not the satellite, request the current list.")
-	trustedList, httpErr := icr.GetTrustedList()
-	if httpErr != (model.HttpError{}) {
-		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))
-		return false
-	}
-	for _, trustedParticipant := range *trustedList {
-		if trustedParticipant.CertificateFingerprint != certificateFingerPrint {
-			continue
-		}
-		if trustedParticipant.Validity != "valid" {
-			logger.Debugf("The participant %s is not valid.", logging.PrettyPrintObject(trustedParticipant))
-			return false
-		}
-		if trustedParticipant.Status != "granted" {
-			logger.Debugf("The participant %s is not granted.", logging.PrettyPrintObject(trustedParticipant))
-			return false
-		}
-		return true
-	}
-	logger.Debugf("Was not able to find an entry for fingerprint %s.", certificateFingerPrint)
 	return false
 }
 
-func (icr IShareTrustedParticipantRepository) GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
+func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx context.Context) {
+
+	logger.Debugf("Certificate is not the satellite, request the current list.")
+	trustedList, httpErr := icr.getTrustedList()
+	if httpErr != (model.HttpError{}) {
+		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))
+		return
+	}
+	updatedFingerPrints := []string{}
+	for _, trustedParticipant := range *trustedList {
+
+		if trustedParticipant.Validity != "valid" {
+			logger.Debugf("The participant %s is not valid.", logging.PrettyPrintObject(trustedParticipant))
+			continue
+		}
+		if trustedParticipant.Status != "granted" {
+			logger.Debugf("The participant %s is not granted.", logging.PrettyPrintObject(trustedParticipant))
+			continue
+		}
+		updatedFingerPrints = append(updatedFingerPrints, trustedParticipant.CertificateFingerprint)
+	}
+	icr.trustedFingerprints = updatedFingerPrints
+	logger.Debugf("Updated trusted fingerprints to: %s", icr.trustedFingerprints)
+}
+
+func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
 	accessToken, httpErr := icr.tokenFunc(icr.satelliteAr)
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to get a token from the satellite at %s.", logging.PrettyPrintObject(icr.satelliteAr))
