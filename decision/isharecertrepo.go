@@ -3,6 +3,7 @@ package decision
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -165,6 +166,11 @@ func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]m
 }
 
 func buildCertificateFingerprint(certificate *x509.Certificate) (fingerprint []byte) {
+	logger.Debugf("Sum %s", sha256.New().Sum(certificate.Raw))
+	logger.Debugf("Sum256 %s", sha256.Sum256(certificate.Raw))
+	logger.Debugf("Sum224 %s", sha256.Sum224(certificate.Raw))
+	logger.Debugf("Sum1 %s", sha1.Sum(certificate.Raw))
+
 	fingerprintBytes := sha256.Sum256(certificate.Raw)
 	return fingerprintBytes[:]
 }
