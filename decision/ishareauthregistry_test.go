@@ -2,6 +2,7 @@ package decision
 
 import (
 	"crypto/rsa"
+	"crypto/x509"
 	"errors"
 	"io"
 	"net/http"
@@ -14,6 +15,19 @@ import (
 	"github.com/wistefan/dsba-pdp/logging"
 	"github.com/wistefan/dsba-pdp/model"
 )
+
+type mockTrustedParticipantRepo struct {
+	isTrusted bool
+}
+
+func (mtpr *mockTrustedParticipantRepo) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
+	return mtpr.isTrusted
+}
+
+func (mtpr *mockTrustedParticipantRepo) GetTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
+	// not needed in the test
+	return trustedList, httpErr
+}
 
 type mockFileAccessor struct {
 	mockFile  map[string][]byte
@@ -39,10 +53,10 @@ func (mhc *mockHttpClient) PostForm(url string, data url.Values) (*http.Response
 	return mhc.mockDoResponse[url], mhc.mockError[url]
 }
 
-func getIShareTestRegistry(key *rsa.PrivateKey, certificates []string) *IShareAuthorizationRegistry {
-
-	tokenParser := TokenParser{Clock: &mockClock{}}
-	registry := IShareAuthorizationRegistry{signingKey: key, certificateArray: certificates, pdpRegistry: getDefaultTestAR(), tokenParser: tokenParser}
+func getIShareTestRegistry(key *rsa.PrivateKey, certificates []string, isTrusted bool) *IShareAuthorizationRegistry {
+	trustedParticipantRepo := &mockTrustedParticipantRepo{isTrusted: isTrusted}
+	tokenHandler := &TokenHandler{trustedParticipantRepository: trustedParticipantRepo, signingKey: key, certificateArray: certificates, Clock: &mockClock{}}
+	registry := IShareAuthorizationRegistry{pdpRegistry: getDefaultTestAR(), tokenHandler: tokenHandler}
 	return &registry
 }
 
@@ -72,43 +86,44 @@ func TestGetDelegationEvidence(t *testing.T) {
 		mockDoResponse   map[string]*http.Response
 		mockPost         map[string]*http.Response
 		mockError        map[string]error
+		mockTrustCa      bool
 		expectedEvidence *model.DelegationEvidence
 		expectedError    model.HttpError
 	}
 
 	tests := []test{
 		// bad requests
-		{"If invalid private key is configured, an internal error should be returned.", getDefaultTestAR(), &rsa.PrivateKey{}, getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusInternalServerError}},
+		{"If invalid private key is configured, an internal error should be returned.", getDefaultTestAR(), &rsa.PrivateKey{}, getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusInternalServerError}},
 
 		// token endpoint errors
-		{"If AR's token endpoint is unresponsive, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's token endpoint request throws an error, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{"http://fiware.org/connect/token": errors.New("request_timeout")}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If token isn't accepted, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": forbiddenResponse()}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If token response contains an unparsable body, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("something_unexpected"))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If token response contains a body without an access token, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("{\"something\": \"unexpected\"}"))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's token endpoint is unresponsive, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's token endpoint request throws an error, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{}, map[string]*http.Response{}, map[string]error{"http://fiware.org/connect/token": errors.New("request_timeout")}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If token isn't accepted, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": forbiddenResponse()}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If token response contains an unparsable body, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("something_unexpected"))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If token response contains a body without an access token, a BadGateway should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("{\"something\": \"unexpected\"}"))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
 
 		// delegation endpoint errors
-		{"If AR's delegation endpoint is unresponsive, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse()}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation endpoint request throws an error, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse()}, map[string]*http.Response{}, map[string]error{"http://fiware.org/delegation": errors.New("request_timeout")}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation endpoint responds unexpected, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": forbiddenResponse()}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation endpoint responds 404, return a Forbidden.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": notFoundResponse()}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusForbidden}},
-		{"If AR's delegation response contains no body, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains an unparsable body, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("something_unexpected"))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains a body with the wrong format, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("{\"something\": \"unexpected\"}"))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains a body with an non-jwt delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(nonJwtDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains a body with an invalid delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(invalidDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains a body with an invalid chain in the delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(invalidChainDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
-		{"If AR's delegation response contains a body with an expired delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(expiredDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation endpoint is unresponsive, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse()}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation endpoint request throws an error, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse()}, map[string]*http.Response{}, map[string]error{"http://fiware.org/delegation": errors.New("request_timeout")}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation endpoint responds unexpected, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": forbiddenResponse()}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation endpoint responds 404, return a Forbidden.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": notFoundResponse()}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusForbidden}},
+		{"If AR's delegation response contains no body, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains an unparsable body, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("something_unexpected"))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains a body with the wrong format, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader("{\"something\": \"unexpected\"}"))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains a body with an non-jwt delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(nonJwtDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains a body with an invalid delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(invalidDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains a body with an invalid chain in the delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(invalidChainDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
+		{"If AR's delegation response contains a body with an expired delegation_token, return a BadGateway.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(expiredDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, true, nil, model.HttpError{Status: http.StatusBadGateway}},
 
 		// valid request & return
-		{"If a valid token is returned, the evidence from the token should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(validDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, evidenceFromToken(), model.HttpError{}},
+		{"If a valid token is returned, the evidence from the token should be returned.", getDefaultTestAR(), getTestKey(), getTestCerts(), map[string]*http.Response{"http://fiware.org/connect/token": tokenResponse(), "http://fiware.org/delegation": {StatusCode: 200, Body: io.NopCloser(strings.NewReader(validDelegationToken()))}}, map[string]*http.Response{}, map[string]error{}, true, evidenceFromToken(), model.HttpError{}},
 	}
 
 	for _, tc := range tests {
 
 		logger.Infof("TestGetDelegationEvidence +++++++++++++++++ Running test: %s", tc.testName)
 		globalHttpClient = &mockHttpClient{tc.mockDoResponse, tc.mockPost, tc.mockError}
-		registry := getIShareTestRegistry(tc.testKey, tc.testCertificates)
+		registry := getIShareTestRegistry(tc.testKey, tc.testCertificates, tc.mockTrustCa)
 		delegationEvidence, httpErr := registry.GetDelegationEvidence("myIssuer", "myTarget", &[]model.Policy{}, &tc.testRegistry)
 
 		if httpErr.Status != tc.expectedError.Status {
@@ -142,7 +157,7 @@ func TestGetSigningKeyErrors(t *testing.T) {
 
 	tests := []test{
 		{"When file access fails, return an error.", nil, errors.New("access_denied"), errors.New("access_denied")},
-		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
+		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
 	}
 
 	for _, tc := range tests {
@@ -232,6 +247,7 @@ func TestNewIShareAuthorizationRegistry(t *testing.T) {
 		}
 
 		ishareFileAccessor = &mockFileAccessor{tc.mockFiles, tc.mockErrors}
+		t.Setenv(FingerprintsListEnvVar, "myFingerprint")
 		t.Setenv(IShareEnabledVar, tc.isEnabled)
 		t.Setenv(CertificatePathVar, tc.testCertPath)
 		t.Setenv(KeyPathVar, tc.testKeyPath)
