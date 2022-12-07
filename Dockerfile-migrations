@@ -9,4 +9,8 @@ ENV MYSQL_PASSWORD=password
 WORKDIR /go/src/app
 COPY ./ ./
 
+RUN go get -d -v ./...
+RUN go get github.com/go-rel/migration
 RUN go install github.com/go-rel/cmd/rel
+
+CMD ["rel", "migrate"]
