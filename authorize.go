@@ -36,6 +36,7 @@ func authorize(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
+	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
 	token := getTokenFromBearer(authorizationHeader)
 
 	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
