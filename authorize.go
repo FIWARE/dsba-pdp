@@ -45,6 +45,8 @@ func authorize(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
 		return
 	}
+
+	logger.Debugf("The token is %s", logging.PrettyPrintObject(unverifiedToken))
 	parsedToken := unverifiedToken.Claims.(*model.DSBAToken)
 	logger.Debugf("Received token %s, parts: %s", logging.PrettyPrintObject(parsedToken), logging.PrettyPrintObject(parts))
 
