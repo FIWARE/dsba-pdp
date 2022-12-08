@@ -37,7 +37,7 @@ type DSBAVerifiableCredential struct {
 	Issuer            string            `json:"issuer"`
 	IssuanceDate      string            `json:"issuanceDate"`
 	ValidFrom         string            `json:"validFrom"`
-	ExpirationDate    string            `json:"expirationDate"`
+	ExpirationDate    string            `json:"expirationDate,omitempty"`
 	CredentialSubject CredentialSubject `json:"credentialSubject"`
 }
 
