@@ -39,14 +39,14 @@ func authorize(c *gin.Context) {
 	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
 	token := getTokenFromBearer(authorizationHeader)
 
-	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
+	unverifiedToken, parts, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
 	if err != nil {
 		logger.Warn("Was not able to parse the token.")
 		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
 		return
 	}
 	parsedToken := unverifiedToken.Claims.(*model.DSBAToken)
-	logger.Debugf("Received token %s", logging.PrettyPrintObject(parsedToken))
+	logger.Debugf("Received token %s, parts: %s", logging.PrettyPrintObject(parsedToken), logging.PrettyPrintObject(parts))
 
 	originalAddress := c.GetHeader("X-Original-URI")
 	requestType := c.GetHeader("X-Original-Action")
