@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
-	client "github.com/wistefan/dsba-pdp/http"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
+	client "github.com/fiware/dsba-pdp/http"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 )
 
 var logger = logging.Log()

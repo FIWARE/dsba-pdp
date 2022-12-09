@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fiware/dsba-pdp/config"
+	"github.com/fiware/dsba-pdp/decision"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/trustedissuer"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/wistefan/dsba-pdp/config"
-	"github.com/wistefan/dsba-pdp/decision"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
-	"github.com/wistefan/dsba-pdp/trustedissuer"
 )
 
 var decider decision.Decider

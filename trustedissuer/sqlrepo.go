@@ -9,15 +9,15 @@ import (
 	"strconv"
 	"time"
 
+	httpHealth "github.com/fiware/dsba-pdp/http"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
+	dbModel "github.com/fiware/dsba-pdp/sql"
 	"github.com/go-rel/mysql"
 	"github.com/go-rel/rel"
 	"github.com/go-rel/rel/where"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/hellofresh/health-go/v5"
-	httpHealth "github.com/wistefan/dsba-pdp/http"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
-	dbModel "github.com/wistefan/dsba-pdp/sql"
 
 	healthMysql "github.com/hellofresh/health-go/v5/checks/mysql"
 )

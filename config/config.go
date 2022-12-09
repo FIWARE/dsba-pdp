@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"github.com/wistefan/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/logging"
 )
 
 var providerId string

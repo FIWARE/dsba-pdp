@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
 )
 
 type mockTrustedParticipantRepo struct {

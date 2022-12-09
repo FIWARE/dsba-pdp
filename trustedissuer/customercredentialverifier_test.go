@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/fiware/dsba-pdp/model"
 	log "github.com/sirupsen/logrus"
-	"github.com/wistefan/dsba-pdp/model"
 )
 
 func TestCheckRoles(t *testing.T) {
