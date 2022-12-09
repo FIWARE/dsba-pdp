@@ -15,7 +15,7 @@ import (
 var verifier IssuerVerifier
 
 func init() {
-	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTEDLIST_ENABLED"))
+	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare is enabled.")

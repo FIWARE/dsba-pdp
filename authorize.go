@@ -23,7 +23,7 @@ var verifier trustedissuer.IssuerVerifier
 
 func init() {
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
-	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTEDLIST_ENABLED"))
+	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare is enabled.")
@@ -33,8 +33,11 @@ func init() {
 		logger.Info("Trustedlist based on the iShare AR is enabled. With this configuration, everything inside the internal trustedlist will be ignored.")
 		verifier = trustedissuer.NewAuthorizationRegistryVerifier(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	} else {
+		logger.Info("Use the FIWARE Verifier, based on the internal trusted list.")
 		verifier = &trustedissuer.FiwareVerifier{}
 	}
+	logger.Debugf("Ishare verifier enabled: %v, err: %v ", ishareTrustedListEnabled, ishareTLErr)
+
 }
 
 func authorize(c *gin.Context) {
