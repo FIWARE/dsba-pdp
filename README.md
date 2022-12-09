@@ -1,12 +1,12 @@
 # DSBA PDP
 
-MVP implementation of a Policy-Desicion Point, defiend by the [DSBA-MVF](https://hesusruiz.github.io/dsbamvf).
+Implementation of a Policy-Desicion Point, evaluating [Json-Web-Tokens](https://jwt.io/) containing VerifiableCredentials in an DSBA-compliant way. It also supports the evaluation in the context of [i4Trust](https://github.com/i4Trust).
 
 ## Quick start
 
 The PDP will run in the context of an iShare-Dataprovider, therefor you need to supply the certificate and key, together with the client-id.
 The certificate needs to be the full chain in pem-format, the key needs to be an unencrypted rsa-privatekey. See the (invalid!) examples in the [examples-folder](./examples/).   
-The files need to be mounted to the container, default paths are /iShare/cert.pem and /iShare/key.pem. The Id has to be provided via the environment variable ```ISHARE_CLIENT_ID``. The default will use the authorization-registry at https://ar.isharetest.net .
+The files need to be mounted to the container, default paths are /iShare/cert.pem and /iShare/key.pem. The Id has to be provided via the environment variable ```ISHARE_CLIENT_ID```. The default will use the authorization-registry at https://ar.isharetest.net .
 
 Assuming the certificate and key for ```EU.EORI.NLPACKETDEL``` reside in $(pwd)/examples, a PDP for PacketDelivery can be started via 
 
