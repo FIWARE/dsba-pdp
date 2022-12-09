@@ -154,6 +154,7 @@ The service provides the following configuration options:
 |   LOG_REQUESTS  |    If enabled incoming requests will be logged. | ```true```  |
 |   LOG_SKIP_PATHS  |    A comma seperated list of paths that should be excluded from request logging. |  |
 |   ISHARE_ENABLED  |    Should the pdp use the iShare-authorization registry? | ```true```  |
+|   ISHARE_TRUSTED_LIST_ENABLED  |    Should the pdp use the iShare-authorization registry as a trusted list? | ```true```  |
 |   ISHARE_CERTIFICATE_PATH  |       Path to read the iShare certificate from. | ```/iShare/certificate.pem```  |
 |   ISHARE_KEY_PATH  |       Path to read the iShare key from. | ```/iShare/key.pem```  |
 |   ISHARE_CLIENT_ID  |       Id to be used for the IDP when interacting in iShare. | ```EU.EORI.MyDummyClient```  |

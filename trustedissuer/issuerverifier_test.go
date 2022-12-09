@@ -111,7 +111,9 @@ func TestVerify(t *testing.T) {
 		customerCredentialsVerifier = &ccSpy
 
 		clock = &mockClock{}
-		decision, httpErr := Verify(tc.testCredential)
+		verifier := FiwareVerifier{}
+
+		decision, httpErr := verifier.Verify(tc.testCredential)
 
 		if httpErr.Status != tc.expectedError.Status {
 			t.Errorf("%s: Unexpected error. Excpected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
@@ -246,7 +248,7 @@ func noIssuerCredential() model.DSBAVerifiableCredential {
 			Id: "did:elsi:cs",
 			Roles: []model.Role{
 				{
-					Name:   []string{"MY_ROLE"},
+					Names:  []string{"MY_ROLE"},
 					Target: "did:my:pdp",
 				},
 			},
@@ -263,7 +265,7 @@ func validCredential() model.DSBAVerifiableCredential {
 			Id: "did:elsi:cs",
 			Roles: []model.Role{
 				{
-					Name:   []string{"MY_ROLE"},
+					Names:  []string{"MY_ROLE"},
 					Target: "did:my:pdp",
 				},
 			},
@@ -280,7 +282,7 @@ func validIShareCredential() model.DSBAVerifiableCredential {
 			Id: "did:elsi:cs",
 			Roles: []model.Role{
 				{
-					Name:   []string{"MY_ROLE"},
+					Names:  []string{"MY_ROLE"},
 					Target: "did:my:pdp",
 				},
 			},

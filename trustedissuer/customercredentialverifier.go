@@ -43,7 +43,7 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 
 	for _, role := range credentialSubject.Roles {
 		if role.Target == envConfig.ProviderId() {
-			descision = isRoleAllowed(role.Name, roleClaim)
+			descision = isRoleAllowed(role.Names, roleClaim)
 			if !descision.Decision {
 				return descision, err
 			}

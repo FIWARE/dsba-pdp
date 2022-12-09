@@ -1,6 +1,6 @@
 module github.com/fiware/dsba-pdp
 
-go 1.17
+go 1.18
 
 require golang.org/x/oauth2 v0.1.0
 

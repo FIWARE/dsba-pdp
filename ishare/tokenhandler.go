@@ -1,4 +1,4 @@
-package decision
+package ishare
 
 import (
 	"crypto/rsa"
@@ -14,6 +14,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fiware/dsba-pdp/decision"
 	"github.com/fiware/dsba-pdp/logging"
 	"github.com/fiware/dsba-pdp/model"
 	"github.com/golang-jwt/jwt"
@@ -46,17 +47,7 @@ type TokenHandler struct {
 	/**
 	* Clock interface for validating tokens
 	 */
-	Clock Clock
-}
-
-type Clock interface {
-	Now() time.Time
-}
-
-type RealClock struct{}
-
-func (c RealClock) Now() time.Time {
-	return time.Now()
+	Clock decision.Clock
 }
 
 func NewTokenHandler() (tokenHandler *TokenHandler) {
@@ -88,7 +79,7 @@ func NewTokenHandler() (tokenHandler *TokenHandler) {
 	tokenHandler.signingKey = signingKey
 	tokenHandler.certificateArray = certificateArray
 
-	tokenHandler.Clock = RealClock{}
+	tokenHandler.Clock = decision.RealClock{}
 
 	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.getTokenFromAR, tokenHandler.parseTrustedListToken)
 	tokenHandler.trustedParticipantRepository = trustedParticipantRepository

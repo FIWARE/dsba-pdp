@@ -1,4 +1,4 @@
-package decision
+package ishare
 
 import (
 	"fmt"
@@ -89,7 +89,7 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 }
 
 func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, role model.Role, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
-	for _, roleName := range role.Name {
+	for _, roleName := range role.Names {
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
 			return decision, httpErr
@@ -107,7 +107,7 @@ func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer stri
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
 		return decision, httpErr
 	}
-	decision = checkDelegationEvidence(delegationEvidenceForRole)
+	decision = CheckDelegationEvidence(delegationEvidenceForRole)
 	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
 	return decision, httpErr
 }
@@ -119,12 +119,12 @@ func (isd IShareDecider) decideForRolename(requestTarget string, roleIssuer stri
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(authorizationRegistry))
 		return decision, httpErr
 	}
-	decision = checkDelegationEvidence(delegationEvidenceForRole)
+	decision = CheckDelegationEvidence(delegationEvidenceForRole)
 	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
 	return decision, httpErr
 }
 
-func checkDelegationEvidence(delegationEvidence *model.DelegationEvidence) (decision model.Decision) {
+func CheckDelegationEvidence(delegationEvidence *model.DelegationEvidence) (decision model.Decision) {
 	if !isActive(delegationEvidence) {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("DelegationEvidence %s is not inside a valid time range.", logging.PrettyPrintObject(*delegationEvidence))}
 	}

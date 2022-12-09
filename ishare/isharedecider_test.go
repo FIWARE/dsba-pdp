@@ -1,4 +1,4 @@
-package decision
+package ishare
 
 import (
 	"net/http"
@@ -185,7 +185,7 @@ func getIShareDSBAToken() model.DSBAToken {
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
 				Roles: []model.Role{
-					{Name: []string{"CUSTOMER"}, Target: "myPdp"},
+					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
 				},
 				IShareCredentialsSubject: &model.IShareCredentialsSubject{
 					AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
@@ -205,7 +205,7 @@ func getDSBAToken() model.DSBAToken {
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
 				Roles: []model.Role{
-					{Name: []string{"CUSTOMER"}, Target: "myPdp"},
+					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
 				},
 			},
 		},
