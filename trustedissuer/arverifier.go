@@ -86,6 +86,7 @@ func buildVCPolicy(vcType string, alloweRoles []string) model.Policy {
 			Resource: &resource,
 			Actions:  []string{VC_ISSUE_ACTION},
 		},
+		Rules: []model.Rule{{Effect: "Permit"}},
 	}
 	return policy
 }
