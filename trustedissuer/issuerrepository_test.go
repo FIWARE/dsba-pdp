@@ -10,9 +10,9 @@ import (
 	"github.com/go-rel/reltest"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
-	"github.com/wistefan/dsba-pdp/sql"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/sql"
 )
 
 func getIssuer(id string, capabilities *[]model.Capability) model.TrustedIssuer {

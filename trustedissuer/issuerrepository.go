@@ -3,7 +3,7 @@ package trustedissuer
 import (
 	"os"
 
-	"github.com/wistefan/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/model"
 )
 
 /**

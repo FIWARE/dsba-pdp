@@ -5,10 +5,10 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/fiware/dsba-pdp/http"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/trustedissuer"
 	"github.com/penglongli/gin-metrics/ginmetrics"
-	"github.com/wistefan/dsba-pdp/http"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/trustedissuer"
 
 	"github.com/gin-gonic/gin"
 )

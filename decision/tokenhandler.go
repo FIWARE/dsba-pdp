@@ -14,10 +14,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
 )
 
 /**
