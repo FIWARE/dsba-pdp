@@ -10,6 +10,7 @@ import (
 
 	"github.com/fiware/dsba-pdp/config"
 	"github.com/fiware/dsba-pdp/decision"
+	"github.com/fiware/dsba-pdp/ishare"
 	"github.com/fiware/dsba-pdp/logging"
 	"github.com/fiware/dsba-pdp/model"
 	"github.com/fiware/dsba-pdp/trustedissuer"
@@ -18,14 +19,27 @@ import (
 )
 
 var decider decision.Decider
+var verifier trustedissuer.IssuerVerifier
 
 func init() {
+	logger.Debug("Initalize authorize.")
+
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
+	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
 	if ishareErr == nil && ishareEnabled {
-		logger.Info("iShare is enabled.")
-		decider = decision.NewIShareDecider(decision.NewIShareAuthorizationRegistry(), config.EnvConfig{})
+		logger.Info("iShare decider is enabled.")
+		decider = ishare.NewIShareDecider(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	}
+	if ishareTLErr == nil && ishareTrustedListEnabled {
+		logger.Info("Trustedlist based on the iShare AR is enabled. With this configuration, everything inside the internal trustedlist will be ignored.")
+		verifier = trustedissuer.NewAuthorizationRegistryVerifier(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
+	} else {
+		logger.Info("Use the FIWARE Verifier, based on the internal trusted list.")
+		verifier = &trustedissuer.FiwareVerifier{}
+	}
+	logger.Debugf("Ishare verifier enabled: %v, err: %v ", ishareTrustedListEnabled, ishareTLErr)
+
 }
 
 func authorize(c *gin.Context) {
@@ -66,7 +80,7 @@ func authorize(c *gin.Context) {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
 	// verify trust in the issuer
-	decision, httpErr := trustedissuer.Verify(parsedToken.VerifiableCredential)
+	decision, httpErr := verifier.Verify(parsedToken.VerifiableCredential)
 	if httpErr != (model.HttpError{}) {
 		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.RootError)
 		c.AbortWithStatusJSON(httpErr.Status, httpErr)

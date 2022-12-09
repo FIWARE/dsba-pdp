@@ -13,13 +13,19 @@ import (
 var clock decision.Clock = &decision.RealClock{}
 
 type IssuerVerifier interface {
-	Verify(claims *[]model.Claim, credentialSubject *model.CredentialSubject, issuerId string) (decision model.Decision, httpErr model.HttpError)
+	Verify(vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError)
 }
 
-var iShareVerifier IssuerVerifier = IShareCustomerCredentialVerifier{}
-var customerCredentialsVerifier IssuerVerifier = CustomerCredentialVerifier{}
+type CredentialVerifier interface {
+	Verify(claims *[]model.Claim, credentialSubject *model.CredentialSubject, issuerId string) (descision model.Decision, err model.HttpError)
+}
 
-func Verify(vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
+type FiwareVerifier struct{}
+
+var iShareVerifier CredentialVerifier = IShareCustomerCredentialVerifier{}
+var customerCredentialsVerifier CredentialVerifier = CustomerCredentialVerifier{}
+
+func (fv *FiwareVerifier) Verify(vc model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
 	issuerId := vc.Issuer
 	if issuerId == "" {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("VC %s does not contain a valid issuer id.", logging.PrettyPrintObject(vc))}, httpErr

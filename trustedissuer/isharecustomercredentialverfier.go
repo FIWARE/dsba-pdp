@@ -88,7 +88,7 @@ func checkRoles(roleClaim model.Claim, roles []model.Role) (decision model.Decis
 		}
 
 		if role.Provider != "" {
-			decision, httpErr = checkAllowedByProvider(allowedByProvider, role.Provider, role.Name)
+			decision, httpErr = checkAllowedByProvider(allowedByProvider, role.Provider, role.Names)
 		}
 
 		if httpErr != (model.HttpError{}) {
@@ -118,7 +118,7 @@ func checkAllowedByProvider(allowedByProvider map[string]*[]string, providerId s
 }
 
 func checkGeneralAllowance(allowedRoles []string, role model.Role) (decision model.Decision, httpErr model.HttpError) {
-	if containsAll(allowedRoles, role.Name) {
+	if containsAll(allowedRoles, role.Names) {
 		return model.Decision{Decision: true, Reason: "Role is allowed."}, httpErr
 	}
 	return model.Decision{Decision: false, Reason: fmt.Sprintf("Role %s is not generally allowed by %v.", logging.PrettyPrintObject(role), allowedRoles)}, httpErr
