@@ -22,11 +22,13 @@ var decider decision.Decider
 var verifier trustedissuer.IssuerVerifier
 
 func init() {
+	logger.Debug("Initalize authorize.")
+
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
 	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
 	if ishareErr == nil && ishareEnabled {
-		logger.Info("iShare is enabled.")
+		logger.Info("iShare decider is enabled.")
 		decider = ishare.NewIShareDecider(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	}
 	if ishareTLErr == nil && ishareTrustedListEnabled {
