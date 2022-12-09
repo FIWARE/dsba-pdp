@@ -17,15 +17,13 @@ jobs:
 
       - name: Install coveralls dependencies
         run: |
-          go get github.com/modocache/gover
           go get github.com/mattn/goveralls
           go get github.com/go-playground/validator/v10
 
       - name: Go test
         run: |
-          go test ./... -v -cover
+          go test ./... -v -coverprofile=profile.cov ./...
 
-      - name: Prepare and send
-        run: |
-          gover
-          goveralls -repotoken ${{ secrets.COVERALLS_TOKEN }}
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: profile.cov
