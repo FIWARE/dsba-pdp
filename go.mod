@@ -1,4 +1,4 @@
-module github.com/wistefan/dsba-pdp
+module github.com/fiware/dsba-pdp
 
 go 1.17
 

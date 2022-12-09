@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 	"github.com/procyon-projects/chrono"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
 )
 
 const FingerprintsListEnvVar = "ISHARE_TRUSTED_FINGERPRINTS_LIST"

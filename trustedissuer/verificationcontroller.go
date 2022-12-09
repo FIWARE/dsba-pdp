@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/fiware/dsba-pdp/model"
 	"github.com/gin-gonic/gin"
-	"github.com/wistefan/dsba-pdp/model"
 )
 
 func VerifyIssuer(c *gin.Context) {

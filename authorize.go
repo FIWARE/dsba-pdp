@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fiware/dsba-pdp/config"
+	"github.com/fiware/dsba-pdp/decision"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/trustedissuer"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/wistefan/dsba-pdp/config"
-	"github.com/wistefan/dsba-pdp/decision"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
-	"github.com/wistefan/dsba-pdp/trustedissuer"
 )
 
 var decider decision.Decider
@@ -36,16 +36,19 @@ func authorize(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
+	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
 	token := getTokenFromBearer(authorizationHeader)
 
-	unverifiedToken, _, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
+	unverifiedToken, parts, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
 	if err != nil {
 		logger.Warn("Was not able to parse the token.")
 		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
 		return
 	}
+
+	logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(unverifiedToken))
 	parsedToken := unverifiedToken.Claims.(*model.DSBAToken)
-	logger.Debugf("Received token %s", logging.PrettyPrintObject(parsedToken))
+	logger.Debugf("Received token %s, parts: %s", logging.PrettyPrintObject(parsedToken), logging.PrettyPrintObject(parts))
 
 	originalAddress := c.GetHeader("X-Original-URI")
 	requestType := c.GetHeader("X-Original-Action")

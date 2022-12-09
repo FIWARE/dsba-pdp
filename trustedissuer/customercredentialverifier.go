@@ -3,9 +3,9 @@ package trustedissuer
 import (
 	"fmt"
 
-	"github.com/wistefan/dsba-pdp/config"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/config"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 )
 
 const ROLES_KEY = "roles"

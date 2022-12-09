@@ -1,6 +1,6 @@
 package decision
 
-import "github.com/wistefan/dsba-pdp/model"
+import "github.com/fiware/dsba-pdp/model"
 
 // interface of the configured decider
 

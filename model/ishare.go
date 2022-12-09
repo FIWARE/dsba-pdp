@@ -99,7 +99,7 @@ type IShareToken struct {
 
 type IShareCredentialsSubject struct {
 	// information about the authorization registry, to retrieve the policies for the issuer
-	AuthorizationRegistries *map[string]AuthorizationRegistry `json:"authorizationRegistry"`
+	AuthorizationRegistries *map[string]AuthorizationRegistry `json:"authorizationRegistry,omitempty"`
 }
 
 type AuthorizationRegistry struct {

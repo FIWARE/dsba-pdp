@@ -27,29 +27,29 @@ func (err *HttpError) GetRoot() error {
 
 type DSBAToken struct {
 	VerifiableCredential DSBAVerifiableCredential `json:"verifiableCredential"`
-	jwt.RegisteredClaims
+	*jwt.RegisteredClaims
 }
 
 type DSBAVerifiableCredential struct {
-	Context           []string          `json:"@context"`
-	Id                string            `json:"id"`
-	Type              []string          `json:"type"`
-	Issuer            string            `json:"issuer"`
-	IssuanceDate      string            `json:"issuanceDate"`
-	ValidFrom         string            `json:"validFrom"`
-	ExpirationDate    string            `json:"expirationDate"`
-	CredentialSubject CredentialSubject `json:"credentialSubject"`
+	Context           []string          `json:"@context,omitempty"`
+	Id                string            `json:"id,omitempty"`
+	Type              []string          `json:"type,omitempty"`
+	Issuer            string            `json:"issuer,omitempty"`
+	IssuanceDate      string            `json:"issuanceDate,omitempty"`
+	ValidFrom         string            `json:"validFrom,omitempty"`
+	ExpirationDate    string            `json:"expirationDate,omitempty"`
+	CredentialSubject CredentialSubject `json:"credentialSubject,omitempty"`
 }
 
 type Role struct {
 	// name of the role, for example READER
-	Name     []string `json:"names"`
-	Target   string   `json:"target"`
+	Name     []string `json:"names,omitempty"`
+	Target   string   `json:"target,omitempty"`
 	Provider string   `json:"provider,omitempty"`
 }
 
 type CredentialSubject struct {
-	Id    string `json:"id"`
-	Roles []Role `json:"roles"`
+	Id    string `json:"id,omitempty"`
+	Roles []Role `json:"roles,omitempty"`
 	*IShareCredentialsSubject
 }

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/wistefan/dsba-pdp/decision"
-	"github.com/wistefan/dsba-pdp/logging"
-	"github.com/wistefan/dsba-pdp/model"
+	"github.com/fiware/dsba-pdp/decision"
+	"github.com/fiware/dsba-pdp/logging"
+	"github.com/fiware/dsba-pdp/model"
 )
 
 var clock decision.Clock = &decision.RealClock{}
