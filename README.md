@@ -178,3 +178,54 @@ In order to setup the schema, run the db-migrations container, configurable with
 ```shell
   docker run quay.io/wi_stefan/dsba-db-migrations rel migrate
 ```
+
+# Trusted List verification
+
+The validation of trusted issuers, as described in [Structure](#structure), can either be done via the internal trusted issuers list or by using an [iShare-compliant DelegationEndpoint](https://dev.ishareworks.org/delegation/endpoint.html). The implementor of the endpoint is commonly referred to as the AuthorizationRegstry. When enabled via ```ISHARE_TRUSTED_LIST_ENABLED```, the [AuthorizationRegistryrVerifier](./trustedissuer/arverifier.go) will check the credentials by requesting policies at the delegation endpoint, where the "type" is equal to the type of the credential, the attributes are the roles assigned in the VC and the action is "ISSUE". To allow the example VC from the quickstart, a policy like this has to be created:
+```json
+{
+	"delegationEvidence": {
+		"notBefore": 1670592215,
+		"notOnOrAfter": 1770592215,
+		"policyIssuer": "did:ebsi:packetdelivery",
+		"target": {
+			"accessSubject": "did:ebsi:happypets"
+		},
+		"policySets": [
+			{
+				"target": {
+					"environment": {
+						"licenses": [
+							"ISHARE.0001"
+						]
+					}
+				},
+				"policies": [
+					{
+						"target": {
+							"resource": {
+								"type": "CustomerCredential",
+								"identifiers": [
+									"*"
+								],
+								"attributes": [
+									"GOLD_CUSTOMER",
+									"STANDARD_CUSTOMER"
+								]
+							},
+							"actions": [
+								"ISSUE"
+							]
+						},
+						"rules": [
+							{
+								"effect": "Permit"
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+}
+```
