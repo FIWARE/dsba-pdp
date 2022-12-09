@@ -154,6 +154,7 @@ The service provides the following configuration options:
 |   LOG_REQUESTS  |    If enabled incoming requests will be logged. | ```true```  |
 |   LOG_SKIP_PATHS  |    A comma seperated list of paths that should be excluded from request logging. |  |
 |   ISHARE_ENABLED  |    Should the pdp use the iShare-authorization registry? | ```true```  |
+|   ISHARE_TRUSTED_LIST_ENABLED  |    Should the pdp use the iShare-authorization registry as a trusted list? | ```true```  |
 |   ISHARE_CERTIFICATE_PATH  |       Path to read the iShare certificate from. | ```/iShare/certificate.pem```  |
 |   ISHARE_KEY_PATH  |       Path to read the iShare key from. | ```/iShare/key.pem```  |
 |   ISHARE_CLIENT_ID  |       Id to be used for the IDP when interacting in iShare. | ```EU.EORI.MyDummyClient```  |
@@ -176,4 +177,55 @@ In order to setup the schema, run the db-migrations container, configurable with
 
 ```shell
   docker run quay.io/wi_stefan/dsba-db-migrations rel migrate
+```
+
+# Trusted List verification
+
+The validation of trusted issuers, as described in [Structure](#structure), can either be done via the internal trusted issuers list or by using an [iShare-compliant DelegationEndpoint](https://dev.ishareworks.org/delegation/endpoint.html). The implementor of the endpoint is commonly referred to as the AuthorizationRegstry. When enabled via ```ISHARE_TRUSTED_LIST_ENABLED```, the [AuthorizationRegistryrVerifier](./trustedissuer/arverifier.go) will check the credentials by requesting policies at the delegation endpoint, where the "type" is equal to the type of the credential, the attributes are the roles assigned in the VC and the action is "ISSUE". To allow the example VC from the quickstart, a policy like this has to be created:
+```json
+{
+	"delegationEvidence": {
+		"notBefore": 1670592215,
+		"notOnOrAfter": 1770592215,
+		"policyIssuer": "did:ebsi:packetdelivery",
+		"target": {
+			"accessSubject": "did:ebsi:happypets"
+		},
+		"policySets": [
+			{
+				"target": {
+					"environment": {
+						"licenses": [
+							"ISHARE.0001"
+						]
+					}
+				},
+				"policies": [
+					{
+						"target": {
+							"resource": {
+								"type": "CustomerCredential",
+								"identifiers": [
+									"*"
+								],
+								"attributes": [
+									"GOLD_CUSTOMER",
+									"STANDARD_CUSTOMER"
+								]
+							},
+							"actions": [
+								"ISSUE"
+							]
+						},
+						"rules": [
+							{
+								"effect": "Permit"
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+}
 ```
