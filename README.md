@@ -1,6 +1,6 @@
 # DSBA PDP
 
-MVP implementation of a Policy-Desicion Point, defiend by the [DSBA-MVF](https://hesusruiz.github.io/dsbamvf).
+Implementation of a Policy-Desicion Point, evaluating [Json-Web-Tokens](https://jwt.io/) containing VerifiableCredentials in an DSBA-compliant way. It also supports the evaluation in the context of [i4Trust](https://github.com/i4Trust).
 
 ## Quick start
 
