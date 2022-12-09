@@ -64,7 +64,7 @@ func (arv *AuthorizationRegistryVerifier) Verify(vc model.DSBAVerifiableCredenti
 
 func (arv *AuthorizationRegistryVerifier) evaluatePolicy(policy model.Policy, vcIssuer string, vcTarget string) (decision model.Decision, httpErr model.HttpError) {
 	policyWrapper := []model.Policy{policy}
-	delegationEvidence, httpErr := arv.authorizationRegistry.GetDelegationEvidence(vcTarget, vcIssuer, &policyWrapper, arv.authorizationRegistry.GetPDPRegistry())
+	delegationEvidence, httpErr := arv.authorizationRegistry.GetDelegationEvidence(vcIssuer, vcTarget, &policyWrapper, arv.authorizationRegistry.GetPDPRegistry())
 	if httpErr != (model.HttpError{}) {
 		logger.Infof("Was not able to get a delegation evidence from the the ar %s. Err: %s.", logging.PrettyPrintObject(arv.authorizationRegistry.GetPDPRegistry()), logging.PrettyPrintObject(&httpErr))
 		return decision, httpErr
