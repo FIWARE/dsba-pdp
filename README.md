@@ -165,6 +165,8 @@ The service provides the following configuration options:
 |   ISHARE_TRUSTED_FINGERPRINTS_LIST  | Initial list of fingerprints for trusted cas. This will be overwritten after the first update from the trust anchor. | ``````  |
 |   ISHARE_TRUST_ANCHOR_URL  |  URL of the trust anchor service. | ```https://scheme.isharetest.net```  |
 |   ISHARE_TRUST_ANCHOR_ID  |   ID of the trust anchor service. | ```EU.EORI.NL000000000```  |
+|   ISHARE_TRUST_ANCHOR_TOKEN_PATH  |   Path to retrieve tokens from the trust anchor. | ```/connect/token```  |
+|   ISHARE_TRUST_ANCHOR_TRUSTED_LIST_PATH  |   Path to retrieve the trusted list from the trust anchor. | ```/trusted_list```  |
 |   ISHARE_TRUSTED_LIST_UPDATE_RATE  |  Frequncy of updates from the trust anchor. In s. | ```5```  |
 |   PROVIDER_ID  |       ID to be used as a (default) role provider when verfiying the issuer. | ```did:ebsi:myprovider```  |
 |   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
