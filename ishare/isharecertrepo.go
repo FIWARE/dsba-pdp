@@ -21,10 +21,14 @@ import (
 const FingerprintsListEnvVar = "ISHARE_TRUSTED_FINGERPRINTS_LIST"
 const SatellitUrlEnvVar = "ISHARE_TRUST_ANCHOR_URL"
 const SatelliteIdEnvVar = "ISHARE_TRUST_ANCHOR_ID"
+const SatelliteTokenPathEnvVar = "ISHARE_TRUST_ANCHOR_TOKEN_PATH"
+const SatelliteTrustedListPathEnvVar = "ISHARE_TRUST_ANCHOR_TRUSTED_LIST_PATH"
 const TrustedListUpdateRateEnvVar = "ISHARE_TRUSTED_LIST_UPDATE_RATE"
 
 var satelliteURL = "https://scheme.isharetest.net"
 var satelliteId = "EU.EORI.NL000000000"
+var satelliteTokenPath = "/connect/token"
+var satelliteTrustedListPath = "/trusted_list"
 var updateRateInS = 5
 
 type TrustedParticipantRepository interface {
@@ -60,6 +64,14 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	if satelliteIdEnv != "" {
 		satelliteId = satelliteIdEnv
 	}
+	satelliteTokenPathEnv := os.Getenv(SatelliteTokenPathEnvVar)
+	if satelliteTokenPathEnv != "" {
+		satelliteTokenPath = satelliteTokenPathEnv
+	}
+	satelliteTrustedListPathEnv := os.Getenv(SatelliteTrustedListPathEnvVar)
+	if satelliteTrustedListPathEnv != "" {
+		satelliteTrustedListPath = satelliteTrustedListPathEnv
+	}
 
 	updateRateInSEnv, err := strconv.Atoi(os.Getenv(TrustedListUpdateRateEnvVar))
 	if err != nil {
@@ -67,7 +79,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	} else if updateRateInSEnv > 0 {
 		updateRateInS = updateRateInSEnv
 	}
-	ar := model.AuthorizationRegistry{Id: satelliteId, Host: satelliteURL}
+	ar := model.AuthorizationRegistry{Id: satelliteId, Host: satelliteURL, TokenPath: satelliteTokenPath}
 
 	logger.Debugf("Using satellite %s as trust anchor.", logging.PrettyPrintObject(ar))
 	trustedParticipantRepo.satelliteAr = &ar
@@ -126,7 +138,7 @@ func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]m
 		return trustedList, httpErr
 	}
 
-	trustedListURL := icr.satelliteAr.Host + "/trusted_list"
+	trustedListURL := icr.satelliteAr.Host + satelliteTrustedListPath
 
 	trustedListRequest, err := http.NewRequest("GET", trustedListURL, nil)
 	if err != nil {
