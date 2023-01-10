@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 )
 
 const TrustedVerifiersVar = "TRUSTED_VERIFIERS"
+const JwkUpdateIntervalVar = "JWK_UPDATE_INTERVAL_IN_S"
+
+const defaultUpdateInterval = 10
 
 type VerifierRepository struct {
 	jwkCache  *jwk.Cache
@@ -43,7 +47,14 @@ func NewVerifierRepository() *VerifierRepository {
 	}
 	verifierRepository.keyMap = map[string]jwk.Key{}
 	taskScheduler := chrono.NewDefaultTaskScheduler()
-	taskScheduler.ScheduleAtFixedRate(verifierRepository.UpdateKeyMap, time.Duration(time.Duration(10).Seconds()))
+
+	updateInterval, err := strconv.Atoi(os.Getenv(JwkUpdateIntervalVar))
+	if err != nil {
+		logger.Warn("No valid update interval for the jwk configured, will use the default.")
+		updateInterval = defaultUpdateInterval
+	}
+
+	taskScheduler.ScheduleAtFixedRate(verifierRepository.UpdateKeyMap, time.Duration(updateInterval)*time.Second)
 	return verifierRepository
 }
 
