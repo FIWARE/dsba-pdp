@@ -54,7 +54,7 @@ func NewVerifierRepository() *VerifierRepository {
 		updateInterval = defaultUpdateInterval
 	}
 
-	taskScheduler.ScheduleAtFixedRate(verifierRepository.UpdateKeyMap, time.Duration(time.Duration(updateInterval).Seconds()))
+	taskScheduler.ScheduleAtFixedRate(verifierRepository.UpdateKeyMap, time.Duration(updateInterval)*time.Second)
 	return verifierRepository
 }
 
