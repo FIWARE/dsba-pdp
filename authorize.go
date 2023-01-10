@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -18,8 +21,12 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+const originalAddressHeader = "X-Original-URI"
+const originalActionHeader = "X-Original-Action"
+
 var decider decision.Decider
 var verifier trustedissuer.IssuerVerifier
+var verifierRepository *VerifierRepository
 
 func init() {
 	logger.Debug("Initalize authorize.")
@@ -27,6 +34,7 @@ func init() {
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
 	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
+	verifierRepository = NewVerifierRepository()
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare decider is enabled.")
 		decider = ishare.NewIShareDecider(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
@@ -51,21 +59,26 @@ func authorize(c *gin.Context) {
 		return
 	}
 	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
-	token := getTokenFromBearer(authorizationHeader)
+	tokenString := getTokenFromBearer(authorizationHeader)
 
-	unverifiedToken, parts, err := jwt.NewParser().ParseUnverified(token, &model.DSBAToken{})
+	token, err := jwt.ParseWithClaims(tokenString, &model.DSBAToken{}, func(t *jwt.Token) (interface{}, error) {
+		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
+		return getKeyFromToken(t)
+	})
+
 	if err != nil {
-		logger.Warn("Was not able to parse the token.")
+		logger.Warnf("Was not able to parse the token. Err: %s", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
 		return
 	}
 
-	logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(unverifiedToken))
-	parsedToken := unverifiedToken.Claims.(*model.DSBAToken)
-	logger.Debugf("Received token %s, parts: %s", logging.PrettyPrintObject(parsedToken), logging.PrettyPrintObject(parts))
+	logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(token))
 
-	originalAddress := c.GetHeader("X-Original-URI")
-	requestType := c.GetHeader("X-Original-Action")
+	parsedToken := token.Claims.(*model.DSBAToken)
+	logger.Debugf("Received token %s.", logging.PrettyPrintObject(parsedToken))
+
+	originalAddress := c.GetHeader(originalAddressHeader)
+	requestType := c.GetHeader(originalActionHeader)
 
 	logger.Debugf("Received request %s - %s.", requestType, originalAddress)
 
@@ -108,6 +121,33 @@ func authorize(c *gin.Context) {
 	logger.Debugf("Denied the request because of: %s", decision.Reason)
 
 	c.AbortWithStatusJSON(http.StatusForbidden, decision)
+}
+
+func getKeyFromToken(token *jwt.Token) (key interface{}, err error) {
+	kid, ok := token.Header["kid"]
+	if !ok {
+		logger.Warn("Received a token without a kid header.")
+		logger.Debugf("The token was: %s", token.Raw)
+		return key, errors.New("no_kid_header_present")
+	}
+	jwk, err := verifierRepository.GetKey(kid.(string))
+	if err != nil {
+		return key, err
+	}
+
+	var rawkey interface{} // This is the raw key, like *rsa.PrivateKey or *ecdsa.PrivateKey
+	if err = jwk.Raw(&rawkey); err != nil {
+		logger.Warnf("failed to create public key: %s", err)
+		return key, err
+	}
+	switch typedKey := rawkey.(type) {
+	case *rsa.PublicKey:
+		return typedKey, err
+	case *ecdsa.PrivateKey:
+		return &typedKey.PublicKey, err
+	default:
+		return key, errors.New("invalid_key_type")
+	}
 }
 
 /**
