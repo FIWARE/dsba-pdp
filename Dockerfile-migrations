@@ -11,6 +11,7 @@ COPY ./ ./
 
 RUN go get -d -v ./...
 RUN go get github.com/go-rel/migration
-RUN go install github.com/go-rel/cmd
+RUN go get github.com/go-rel/cmd/rel
+RUN go install github.com/go-rel/cmd/rel
 
 CMD ["rel", "migrate"]
