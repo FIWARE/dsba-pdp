@@ -1,6 +1,8 @@
 package model
 
-import "github.com/golang-jwt/jwt/v4"
+import (
+	"github.com/golang-jwt/jwt/v4"
+)
 
 // error interface
 
@@ -27,7 +29,7 @@ func (err *HttpError) GetRoot() error {
 
 type DSBAToken struct {
 	VerifiableCredential DSBAVerifiableCredential `json:"verifiableCredential"`
-	*jwt.RegisteredClaims
+	jwt.RegisteredClaims
 }
 
 type DSBAVerifiableCredential struct {
