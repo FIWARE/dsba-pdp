@@ -93,7 +93,7 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 
 func (icr IShareTrustedParticipantRepository) scheduleTrustedListUpdate(updateRateInS int) {
 	taskScheduler := chrono.NewDefaultTaskScheduler()
-	taskScheduler.ScheduleAtFixedRate(icr.updateTrustedFingerprints, time.Duration(time.Duration(updateRateInS).Seconds()))
+	taskScheduler.ScheduleAtFixedRate(icr.updateTrustedFingerprints, time.Duration(updateRateInS)*time.Second)
 }
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
@@ -108,7 +108,7 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 
 func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx context.Context) {
 
-	logger.Debugf("Certificate is not the satellite, request the current list.")
+	logger.Debug("Certificate is not the satellite, request the current list.")
 	trustedList, httpErr := icr.getTrustedList()
 	if httpErr != (model.HttpError{}) {
 		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))

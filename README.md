@@ -169,6 +169,8 @@ The service provides the following configuration options:
 |   ISHARE_TRUST_ANCHOR_TRUSTED_LIST_PATH  |   Path to retrieve the trusted list from the trust anchor. | ```/trusted_list```  |
 |   ISHARE_TRUSTED_LIST_UPDATE_RATE  |  Frequncy of updates from the trust anchor. In s. | ```5```  |
 |   PROVIDER_ID  |       ID to be used as a (default) role provider when verfiying the issuer. | ```did:ebsi:myprovider```  |
+|   TRUSTED_VERIFIERS | Comma-seperated list of jwk-endpoints for the trusted verifiers(for verfiyng the incoming jwt.). Endpoints need to provide an [RFC-7517](https://www.rfc-editor.org/rfc/rfc7517#page-10) compatible JWKS. | `````` | 
+|   JWK_UPDATE_INTERVAL_IN_S | Update interval of the cache in s. |  ```10``` |
 |   MYSQL_HOST   |       Hostname of the MySql DB      | ```localhost``` |
 |   MYSQL_PORT   |       Port of the MySql DB      | ```3306``` |
 |   MYSQL_DATABASE   |       Schema to be used     |  ```dsba``` |
