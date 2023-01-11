@@ -64,6 +64,8 @@ func (verifierRepository *VerifierRepository) UpdateKeyMap(ctx context.Context) 
 		keyset, err := verifierRepository.jwkCache.Get(context.Background(), tv)
 		if err != nil {
 			logger.Warnf("Was not able to retrieve keys for %s. Error: %s", tv, err)
+			// force a refresh. if the verifier is not available on last get, the cached object is not valid and needs to be fetched
+			verifierRepository.jwkCache.Refresh(context.Background(), tv)
 		} else {
 			logger.Debugf("Got keys %v", keyset)
 			for key := keyset.Keys(context.Background()); key.Next(context.Background()); {
