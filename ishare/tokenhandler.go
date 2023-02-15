@@ -180,8 +180,6 @@ func (th *TokenHandler) getKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 		logger.Warnf("The cert could not be verified.")
 		return nil, err
 	}
-
-	logger.Debugf("Parsed certificate is: %v", clientCert)
 	return clientCert.PublicKey.(*rsa.PublicKey), nil
 }
 
