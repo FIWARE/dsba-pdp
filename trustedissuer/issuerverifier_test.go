@@ -103,7 +103,7 @@ func TestVerify(t *testing.T) {
 
 	for _, tc := range tests {
 
-		log.Info("TestVerfy +++++++++++++++++ Running test: ", tc.testName)
+		log.Info("TestVerify +++++++++++++++++ Running test: ", tc.testName)
 		issuerRepo = &mockRepo{tc.mockIssuer, tc.mockRepoError}
 		iShareSpy := iShareVerifierSpy{tc.mockDecision, tc.mockVerifierError, false}
 		ccSpy := customerVerifierSpy{tc.mockVerifierError, false}

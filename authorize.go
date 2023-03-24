@@ -145,7 +145,10 @@ func getKeyFromToken(token *jwt.Token) (key interface{}, err error) {
 		return typedKey, err
 	case *ecdsa.PrivateKey:
 		return &typedKey.PublicKey, err
+	case *ecdsa.PublicKey:
+		return typedKey, err
 	default:
+		logger.Warnf("Key type is %s.", logging.PrettyPrintObject(typedKey))
 		return key, errors.New("invalid_key_type")
 	}
 }
