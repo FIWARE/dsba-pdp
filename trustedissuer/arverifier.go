@@ -38,6 +38,7 @@ func (arv *AuthorizationRegistryVerifier) Verify(vc model.DSBAVerifiableCredenti
 	}
 
 	issuedRoles := []string{}
+	logging.Log().Infof("Evaluate subject %s for %s", logging.PrettyPrintObject(vc.CredentialSubject), (*arv.envConfig).ProviderId())
 	for _, role := range vc.CredentialSubject.Roles {
 		if role.Target == (*arv.envConfig).ProviderId() {
 			issuedRoles = append(issuedRoles, role.Names...)
