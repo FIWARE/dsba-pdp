@@ -17,11 +17,11 @@ type HttpError struct {
 	RootError error
 }
 
-func (err *HttpError) Error() string {
+func (err HttpError) Error() string {
 	return err.Message
 }
 
-func (err *HttpError) GetRoot() error {
+func (err HttpError) GetRoot() error {
 	return err.RootError
 }
 
