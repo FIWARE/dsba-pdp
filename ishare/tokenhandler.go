@@ -90,16 +90,16 @@ func NewTokenHandler() (tokenHandler *TokenHandler) {
 
 	tokenHandler.Clock = RealClock{}
 
-	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.getTokenFromAR, tokenHandler.parseTrustedListToken)
+	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.GetTokenFromAR, tokenHandler.ParseTrustedListToken)
 	tokenHandler.trustedParticipantRepository = trustedParticipantRepository
 
 	return tokenHandler
 
 }
 
-func (th *TokenHandler) parseIShareToken(tokenString string) (parsedToken *model.IShareToken, httpErr model.HttpError) {
+func (th *TokenHandler) ParseIShareToken(tokenString string) (parsedToken *model.IShareToken, httpErr model.HttpError) {
 	token, err := jwt.ParseWithClaims(tokenString, &model.IShareToken{}, func(t *jwt.Token) (interface{}, error) {
-		return th.getKeyFromToken(t)
+		return th.GetKeyFromToken(t)
 	})
 
 	if err != nil {
@@ -112,9 +112,9 @@ func (th *TokenHandler) parseIShareToken(tokenString string) (parsedToken *model
 
 }
 
-func (th *TokenHandler) parseTrustedListToken(tokenString string) (parsedToken *model.TrustedListToken, httpErr model.HttpError) {
+func (th *TokenHandler) ParseTrustedListToken(tokenString string) (parsedToken *model.TrustedListToken, httpErr model.HttpError) {
 	token, err := jwt.ParseWithClaims(tokenString, &model.TrustedListToken{}, func(t *jwt.Token) (interface{}, error) {
-		return th.getKeyFromToken(t)
+		return th.GetKeyFromToken(t)
 	})
 	if err != nil {
 		return parsedToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Was not able to parse token. Error: %v", err), RootError: err}
@@ -125,7 +125,7 @@ func (th *TokenHandler) parseTrustedListToken(tokenString string) (parsedToken *
 	return token.Claims.(*model.TrustedListToken), httpErr
 }
 
-func (th *TokenHandler) getKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, err error) {
+func (th *TokenHandler) GetKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, err error) {
 
 	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 		return nil, fmt.Errorf("invalid_token_method")
@@ -183,9 +183,9 @@ func (th *TokenHandler) getKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 	return clientCert.PublicKey.(*rsa.PublicKey), nil
 }
 
-func (tokenHandler *TokenHandler) getTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
+func (tokenHandler *TokenHandler) GetTokenFromAR(authorizationRegistry *model.AuthorizationRegistry) (accessToken string, httpErr model.HttpError) {
 
-	signedToken, err := tokenHandler.generateSignedToken(authorizationRegistry.Id, iShareClientId)
+	signedToken, err := tokenHandler.GenerateSignedToken(authorizationRegistry.Id, iShareClientId)
 	if err != nil {
 		httpErr = model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to generate a signed token.", RootError: err}
 		return
@@ -234,7 +234,7 @@ func (tokenHandler *TokenHandler) getTokenFromAR(authorizationRegistry *model.Au
 	return decodedResponse["access_token"].(string), httpErr
 }
 
-func (tokenHandler *TokenHandler) generateSignedToken(arId string, clientId string) (signedToken string, err error) {
+func (tokenHandler *TokenHandler) GenerateSignedToken(arId string, clientId string) (signedToken string, err error) {
 
 	randomUuid, err := uuid.NewRandom()
 	if err != nil {
