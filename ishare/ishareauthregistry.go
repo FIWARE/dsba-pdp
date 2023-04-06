@@ -113,7 +113,7 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) GetPDPRegistry() *model.A
 
 func (iShareAuthRegistry *IShareAuthorizationRegistry) GetDelegationEvidence(issuer string, delegationTarget string, requiredPolicies *[]model.Policy, authorizationRegistry *model.AuthorizationRegistry) (delegeationEvidence *model.DelegationEvidence, httpErr model.HttpError) {
 
-	accessToken, httpErr := iShareAuthRegistry.tokenHandler.getTokenFromAR(authorizationRegistry)
+	accessToken, httpErr := iShareAuthRegistry.tokenHandler.GetTokenFromAR(authorizationRegistry)
 
 	if httpErr != (model.HttpError{}) {
 		logger.Warn("Was not able to get an access token.", httpErr)
@@ -167,7 +167,7 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) GetDelegationEvidence(iss
 		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Received an invalid body from the ar: %s", delegationResponse.Body), RootError: err}
 	}
 
-	parsedToken, httpErr := iShareAuthRegistry.tokenHandler.parseIShareToken(delegationResponseObject.DelegationToken)
+	parsedToken, httpErr := iShareAuthRegistry.tokenHandler.ParseIShareToken(delegationResponseObject.DelegationToken)
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to decode the ar response. Error: %v", httpErr)
 		return delegeationEvidence, httpErr
