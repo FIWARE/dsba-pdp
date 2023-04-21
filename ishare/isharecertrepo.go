@@ -98,7 +98,7 @@ func (icr IShareTrustedParticipantRepository) scheduleTrustedListUpdate(updateRa
 
 func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
-	logger.Debugf("Checking certificate with fingerprint %s.", string(certificateFingerPrint))
+	logger.Tracef("Checking certificate with fingerprint %s.", string(certificateFingerPrint))
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
 		logger.Tracef("The presented certificate is trusted.")
 		return true
