@@ -32,6 +32,11 @@ type DSBAToken struct {
 	jwt.RegisteredClaims
 }
 
+type GaiaXToken struct {
+	VerifiablePresentation []DSBAVerifiableCredential `json:"verifiablePresentation"`
+	jwt.RegisteredClaims
+}
+
 type DSBAVerifiableCredential struct {
 	Context           []string          `json:"@context,omitempty"`
 	Id                string            `json:"id,omitempty"`
@@ -53,5 +58,10 @@ type Role struct {
 type CredentialSubject struct {
 	Id    string `json:"id,omitempty"`
 	Roles []Role `json:"roles,omitempty"`
+	*GaiaXSubject
 	*IShareCredentialsSubject
+}
+
+type GaiaXSubject struct {
+	Type string `json:"type"`
 }

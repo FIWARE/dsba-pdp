@@ -24,11 +24,10 @@ func NewIShareDecider(ar AuthorizationRegistry, config config.Config) *IShareDec
 	return iShareDecider
 }
 
-func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision model.Decision, httpErr model.HttpError) {
+func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCredential, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision model.Decision, httpErr model.HttpError) {
 
 	// we need to use this as request target to check request towards ourself
 	requestTarget := iShareClientId
-	verifiableCredential := token.VerifiableCredential
 	logger.Debugf("Received VC: %s,", logging.PrettyPrintObject(verifiableCredential))
 	logger.Debugf("Creating decision for request %s - %s.", requestType, originalAddress)
 	roleIssuer := isd.envConfig.ProviderId()

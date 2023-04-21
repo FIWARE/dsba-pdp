@@ -50,32 +50,7 @@ func init() {
 
 }
 
-func authorize(c *gin.Context) {
-
-	authorizationHeader := c.GetHeader("Authorization")
-	if authorizationHeader == "" {
-		logger.Warn("No authorization header was provided, will skip decision.")
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
-	tokenString := getTokenFromBearer(authorizationHeader)
-
-	token, err := jwt.ParseWithClaims(tokenString, &model.DSBAToken{}, func(t *jwt.Token) (interface{}, error) {
-		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
-		return getKeyFromToken(t)
-	})
-
-	if err != nil {
-		logger.Warnf("Was not able to parse the token. Err: %s", err)
-		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
-		return
-	}
-
-	logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(token))
-
-	parsedToken := token.Claims.(*model.DSBAToken)
-	logger.Debugf("Received token %s.", logging.PrettyPrintObject(parsedToken))
+func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
 
 	originalAddress := c.GetHeader(originalAddressHeader)
 	requestType := c.GetHeader(originalActionHeader)
@@ -93,34 +68,110 @@ func authorize(c *gin.Context) {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
 	// verify trust in the issuer
-	decision, httpErr := verifier.Verify(parsedToken.VerifiableCredential)
+	decision, httpErr = verifier.Verify(*dsbaCredential)
 	if httpErr != (model.HttpError{}) {
 		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.RootError)
-		c.AbortWithStatusJSON(httpErr.Status, httpErr)
-		return
+		return decision, httpErr
 	}
 	if !decision.Decision {
 		logger.Debugf("Trusted issuer verficiation failed, because of: %s", decision.Reason)
-		c.AbortWithStatusJSON(http.StatusForbidden, decision)
-		return
+		return decision, httpErr
 	}
 
 	// evaluate and decide policies
-	decision, httpErr = decider.Decide(parsedToken, originalAddress, requestType, &jsonData)
+	decision, httpErr = decider.Decide(dsbaCredential, originalAddress, requestType, &jsonData)
 
 	if httpErr != (model.HttpError{}) {
 		logger.Warnf("Did not receive a valid decision from the pdp. Error: %v - root: %v", httpErr, httpErr.RootError)
+		return decision, httpErr
+	}
+	return decision, httpErr
+}
+
+func authorize(c *gin.Context) {
+
+	authorizationHeader := c.GetHeader("Authorization")
+	if authorizationHeader == "" {
+		logger.Warn("No authorization header was provided, will skip decision.")
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
+	tokenString := getTokenFromBearer(authorizationHeader)
+
+	dsbaToken, err := jwt.ParseWithClaims(tokenString, &model.DSBAToken{}, func(t *jwt.Token) (interface{}, error) {
+		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
+		return getKeyFromToken(t)
+	})
+
+	// dsba token received, normal decision flow
+	if err == nil {
+
+		logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(dsbaToken))
+
+		decision, httpErr := verifyDSBACredential(c, &dsbaToken.Claims.(*model.DSBAToken).VerifiableCredential)
+		if httpErr != (model.HttpError{}) {
+			c.AbortWithStatusJSON(httpErr.Status, httpErr)
+			return
+		}
+		if !decision.Decision {
+			c.AbortWithStatusJSON(http.StatusForbidden, decision)
+			return
+		}
+		logger.Debug("Successfully authorized request.")
+		c.Status(http.StatusOK)
+		return
+	}
+
+	// try to parse to a GaiaX token
+	gaiaXToken, err := jwt.ParseWithClaims(tokenString, &model.GaiaXToken{}, func(t *jwt.Token) (interface{}, error) {
+		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
+		return getKeyFromToken(t)
+	})
+	if err != nil {
+		logger.Warnf("Was not able to parse the token. Err: %s", err)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
+		return
+	}
+	decision, httpErr := verifyGaiaXToken(c, gaiaXToken.Claims.(*model.GaiaXToken))
+	if httpErr != (model.HttpError{}) {
 		c.AbortWithStatusJSON(httpErr.Status, httpErr)
 		return
 	}
 	if decision.Decision {
 		logger.Debug("Successfully authorized request.")
 		c.Status(http.StatusOK)
-		return
 	}
-	logger.Debugf("Denied the request because of: %s", decision.Reason)
-
+	logger.Infof("Request was not allowed - Reason: %s", decision.Reason)
 	c.AbortWithStatusJSON(http.StatusForbidden, decision)
+}
+
+func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision model.Decision, httpErr model.HttpError) {
+
+	var userCredential *model.DSBAVerifiableCredential
+	var participantCredential *model.DSBAVerifiableCredential
+
+	for _, vc := range gaiaXToken.VerifiablePresentation {
+		subject := vc.CredentialSubject
+		if subject.IShareCredentialsSubject != nil {
+			userCredential = &vc
+			continue
+		}
+		if subject.GaiaXSubject != nil && subject.GaiaXSubject.Type == "gx:LegalParticipant" {
+			participantCredential = &vc
+			continue
+		}
+	}
+	if userCredential == nil || participantCredential == nil {
+		logger.Warnf("A valid token needs to contain a user credential and a participant credential. Was user: %v, participant: %v", userCredential, participantCredential)
+		return decision, model.HttpError{Status: http.StatusForbidden, Message: "A valid token needs to contain a user credential and a participant credential."}
+	}
+	if userCredential.Issuer != participantCredential.Id {
+		logger.Warn("The user credential was not issued by the participant.")
+		logger.Debugf("UserCredential: %s, Participant: %s", logging.PrettyPrintObject(userCredential), logging.PrettyPrintObject(participantCredential))
+		return model.Decision{Decision: false, Reason: "UserCredential was not issued by the participant."}, httpErr
+	}
+	return verifyDSBACredential(c, userCredential)
 }
 
 func getKeyFromToken(token *jwt.Token) (key interface{}, err error) {

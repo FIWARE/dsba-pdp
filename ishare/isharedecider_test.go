@@ -149,7 +149,7 @@ func TestDecide(t *testing.T) {
 		mr := mockRegistry{mockEvidence: tc.mockEvidence, mockError: tc.mockError}
 		decider := NewIShareDecider(&mr, mockConfig{providerId: tc.testProviderId})
 		logger.Debugf("Test path %s", tc.testAddress)
-		decision, httpErr := decider.Decide(&tc.testToken, tc.testAddress, tc.testRequestType, tc.testRequestBody)
+		decision, httpErr := decider.Decide(&tc.testToken.VerifiableCredential, tc.testAddress, tc.testRequestType, tc.testRequestBody)
 		if httpErr.Status != tc.expectedError.Status {
 			t.Errorf("%s: Unexpected error on decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
 		}
