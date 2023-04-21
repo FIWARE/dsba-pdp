@@ -100,7 +100,7 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 	certificateFingerPrint := buildCertificateFingerprint(certificate)
 	logger.Debugf("Checking certificate with fingerprint %s.", string(certificateFingerPrint))
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
-		logger.Debug("The presented certificate is trusted.")
+		logger.Tracef("The presented certificate is trusted.")
 		return true
 	}
 	return false
@@ -108,7 +108,7 @@ func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certif
 
 func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx context.Context) {
 
-	logger.Debug("Certificate is not the satellite, request the current list.")
+	logger.Tracef("Certificate is not the satellite, request the current list.")
 	trustedList, httpErr := icr.getTrustedList()
 	if httpErr != (model.HttpError{}) {
 		logger.Warnf("Was not able to get the trusted list. Err: %s", logging.PrettyPrintObject(httpErr))
@@ -128,7 +128,7 @@ func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx cont
 		updatedFingerPrints = append(updatedFingerPrints, trustedParticipant.CertificateFingerprint)
 	}
 	icr.trustedFingerprints = updatedFingerPrints
-	logger.Debugf("Updated trusted fingerprints to: %s", icr.trustedFingerprints)
+	logger.Tracef("Updated trusted fingerprints to: %s", icr.trustedFingerprints)
 }
 
 func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
@@ -167,7 +167,7 @@ func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]m
 		logger.Debugf("Was not able to decode the ar response. Error: %v", httpErr)
 		return trustedList, httpErr
 	}
-	logger.Debugf("Trusted list response: %v", logging.PrettyPrintObject(parsedToken))
+	logger.Tracef("Trusted list response: %v", logging.PrettyPrintObject(parsedToken))
 	return parsedToken.TrustedList, httpErr
 }
 
