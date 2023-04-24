@@ -105,11 +105,11 @@ func authorize(c *gin.Context) {
 	})
 
 	// dsba token received, normal decision flow
-	if err == nil {
+	if dsbaToken.Claims.(*model.DSBAToken).VerifiableCredential != nil {
 
 		logger.Debugf("The unverified token is %s", logging.PrettyPrintObject(dsbaToken))
 
-		decision, httpErr := verifyDSBACredential(c, &dsbaToken.Claims.(*model.DSBAToken).VerifiableCredential)
+		decision, httpErr := verifyDSBACredential(c, dsbaToken.Claims.(*model.DSBAToken).VerifiableCredential)
 		if httpErr != (model.HttpError{}) {
 			c.AbortWithStatusJSON(httpErr.Status, httpErr)
 			return
@@ -123,16 +123,17 @@ func authorize(c *gin.Context) {
 		return
 	}
 
-	// try to parse to a GaiaX token
 	gaiaXToken, err := jwt.ParseWithClaims(tokenString, &model.GaiaXToken{}, func(t *jwt.Token) (interface{}, error) {
 		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
 		return getKeyFromToken(t)
 	})
+
 	if err != nil {
 		logger.Warnf("Was not able to parse the token. Err: %s", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, err)
 		return
 	}
+
 	decision, httpErr := verifyGaiaXToken(c, gaiaXToken.Claims.(*model.GaiaXToken))
 	if httpErr != (model.HttpError{}) {
 		c.AbortWithStatusJSON(httpErr.Status, httpErr)
@@ -152,13 +153,17 @@ func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision mo
 	var participantCredential *model.DSBAVerifiableCredential
 
 	for _, vc := range gaiaXToken.VerifiablePresentation {
-		subject := vc.CredentialSubject
+		logger.Infof("Start to handle vc %s", logging.PrettyPrintObject(vc))
+		vcString, _ := json.Marshal(vc)
+		var theCredential model.DSBAVerifiableCredential
+		json.Unmarshal(vcString, &theCredential)
+		subject := theCredential.CredentialSubject
 		if subject.IShareCredentialsSubject != nil {
-			userCredential = &vc
+			userCredential = &theCredential
 			continue
 		}
 		if subject.GaiaXSubject != nil && subject.GaiaXSubject.Type == "gx:LegalParticipant" {
-			participantCredential = &vc
+			participantCredential = &theCredential
 			continue
 		}
 	}
@@ -166,7 +171,7 @@ func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision mo
 		logger.Warnf("A valid token needs to contain a user credential and a participant credential. Was user: %v, participant: %v", userCredential, participantCredential)
 		return decision, model.HttpError{Status: http.StatusForbidden, Message: "A valid token needs to contain a user credential and a participant credential."}
 	}
-	if userCredential.Issuer != participantCredential.Id {
+	if userCredential.Issuer != participantCredential.CredentialSubject.Id {
 		logger.Warn("The user credential was not issued by the participant.")
 		logger.Debugf("UserCredential: %s, Participant: %s", logging.PrettyPrintObject(userCredential), logging.PrettyPrintObject(participantCredential))
 		return model.Decision{Decision: false, Reason: "UserCredential was not issued by the participant."}, httpErr

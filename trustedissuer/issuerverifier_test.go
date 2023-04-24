@@ -246,10 +246,12 @@ func noIssuerCredential() model.DSBAVerifiableCredential {
 		IssuanceDate: "2022-11-23T15:23:13Z",
 		CredentialSubject: model.CredentialSubject{
 			Id: "did:elsi:cs",
-			Roles: []model.Role{
-				{
-					Names:  []string{"MY_ROLE"},
-					Target: "did:my:pdp",
+			IShareCredentialsSubject: &model.IShareCredentialsSubject{
+				Roles: []model.Role{
+					{
+						Names:  []string{"MY_ROLE"},
+						Target: "did:my:pdp",
+					},
 				},
 			},
 		},
@@ -263,10 +265,12 @@ func validCredential() model.DSBAVerifiableCredential {
 		IssuanceDate: "2022-11-23T15:23:13Z",
 		CredentialSubject: model.CredentialSubject{
 			Id: "did:elsi:cs",
-			Roles: []model.Role{
-				{
-					Names:  []string{"MY_ROLE"},
-					Target: "did:my:pdp",
+			IShareCredentialsSubject: &model.IShareCredentialsSubject{
+				Roles: []model.Role{
+					{
+						Names:  []string{"MY_ROLE"},
+						Target: "did:my:pdp",
+					},
 				},
 			},
 		},
@@ -280,15 +284,15 @@ func validIShareCredential() model.DSBAVerifiableCredential {
 		IssuanceDate: "2022-11-23T15:23:13Z",
 		CredentialSubject: model.CredentialSubject{
 			Id: "did:elsi:cs",
-			Roles: []model.Role{
-				{
-					Names:  []string{"MY_ROLE"},
-					Target: "did:my:pdp",
-				},
-			},
 			IShareCredentialsSubject: &model.IShareCredentialsSubject{
 				AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
 					"AR": {Host: "my.other.ar"},
+				},
+				Roles: []model.Role{
+					{
+						Names:  []string{"MY_ROLE"},
+						Target: "did:my:pdp",
+					},
 				},
 			},
 		},
