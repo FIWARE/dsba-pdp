@@ -50,8 +50,21 @@ func init() {
 
 }
 
-func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
+func verifyAtTrustedList(dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
+	// verify trust in the issuer
+	decision, httpErr = verifier.Verify(*dsbaCredential)
+	if httpErr != (model.HttpError{}) {
+		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.RootError)
+		return decision, httpErr
+	}
+	if !decision.Decision {
+		logger.Debugf("Trusted issuer verficiation failed, because of: %s", decision.Reason)
+		return decision, httpErr
+	}
+	return decision, httpErr
+}
 
+func evaluatePolicies(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
 	originalAddress := c.GetHeader(originalAddressHeader)
 	requestType := c.GetHeader(originalActionHeader)
 
@@ -67,16 +80,6 @@ func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCr
 	if err := json.Unmarshal(bodyData, &jsonData); err != nil {
 		logger.Warn("Was not able to decode the body. Will not use it for the descision.", err)
 	}
-	// verify trust in the issuer
-	decision, httpErr = verifier.Verify(*dsbaCredential)
-	if httpErr != (model.HttpError{}) {
-		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.RootError)
-		return decision, httpErr
-	}
-	if !decision.Decision {
-		logger.Debugf("Trusted issuer verficiation failed, because of: %s", decision.Reason)
-		return decision, httpErr
-	}
 
 	// evaluate and decide policies
 	decision, httpErr = decider.Decide(dsbaCredential, originalAddress, requestType, &jsonData)
@@ -86,6 +89,14 @@ func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCr
 		return decision, httpErr
 	}
 	return decision, httpErr
+}
+
+func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
+	decision, httpErr = verifyAtTrustedList(dsbaCredential)
+	if !decision.Decision || httpErr != (model.HttpError{}) {
+		return decision, httpErr
+	}
+	return evaluatePolicies(c, dsbaCredential)
 }
 
 func authorize(c *gin.Context) {
@@ -99,7 +110,7 @@ func authorize(c *gin.Context) {
 	logger.Debugf("Received the token %s to authorize.", authorizationHeader)
 	tokenString := getTokenFromBearer(authorizationHeader)
 
-	dsbaToken, err := jwt.ParseWithClaims(tokenString, &model.DSBAToken{}, func(t *jwt.Token) (interface{}, error) {
+	dsbaToken, _ := jwt.ParseWithClaims(tokenString, &model.DSBAToken{}, func(t *jwt.Token) (interface{}, error) {
 		logger.Debugf("Token alg %s, %v", t.Method.Alg(), jwt.GetSigningMethod(t.Method.Alg()))
 		return getKeyFromToken(t)
 	})
@@ -142,6 +153,7 @@ func authorize(c *gin.Context) {
 	if decision.Decision {
 		logger.Debug("Successfully authorized request.")
 		c.Status(http.StatusOK)
+		return
 	}
 	logger.Infof("Request was not allowed - Reason: %s", decision.Reason)
 	c.AbortWithStatusJSON(http.StatusForbidden, decision)
@@ -158,7 +170,8 @@ func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision mo
 		var theCredential model.DSBAVerifiableCredential
 		json.Unmarshal(vcString, &theCredential)
 		subject := theCredential.CredentialSubject
-		if subject.IShareCredentialsSubject != nil {
+		logger.Infof("Sub %s", logging.PrettyPrintObject(subject))
+		if subject.Roles != nil {
 			userCredential = &theCredential
 			continue
 		}
@@ -176,7 +189,16 @@ func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision mo
 		logger.Debugf("UserCredential: %s, Participant: %s", logging.PrettyPrintObject(userCredential), logging.PrettyPrintObject(participantCredential))
 		return model.Decision{Decision: false, Reason: "UserCredential was not issued by the participant."}, httpErr
 	}
-	return verifyDSBACredential(c, userCredential)
+
+	gaiaxIssuerCredential := model.DSBAVerifiableCredential{Issuer: "Gaia-X", CredentialSubject: userCredential.CredentialSubject, Type: userCredential.Type}
+	// we want to verify that only roles are contained, that are allowed through the gaia-x chain
+	decision, httpErr = verifyAtTrustedList(&gaiaxIssuerCredential)
+	if !decision.Decision || httpErr != (model.HttpError{}) {
+		logger.Info("Gaia-X participant was not allwed to issue that credential.")
+		return decision, httpErr
+	}
+
+	return evaluatePolicies(c, userCredential)
 }
 
 func getKeyFromToken(token *jwt.Token) (key interface{}, err error) {

@@ -85,6 +85,7 @@ func TestVerify(t *testing.T) {
 	}
 
 	tests := []test{
+
 		{"If no issuer is provided, the vc should be denied.", noIssuerCredential(), model.TrustedIssuer{}, model.HttpError{}, model.Decision{}, model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, false, false},
 		{"If no issuer is configured, the vc should be denied.", validCredential(), model.TrustedIssuer{}, model.HttpError{Status: http.StatusNotFound}, model.Decision{}, model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: http.StatusNotFound}, false, false},
 		{"If issuer has no capabilities configured, the vc should be denied.", validCredential(), model.TrustedIssuer{Id: "myIssuer"}, model.HttpError{}, model.Decision{}, model.HttpError{}, model.Decision{Decision: false}, model.HttpError{}, false, false},
@@ -102,31 +103,32 @@ func TestVerify(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Info("TestVerify +++++++++++++++++ Running test: ", tc.testName)
+			issuerRepo = &mockRepo{tc.mockIssuer, tc.mockRepoError}
+			iShareSpy := iShareVerifierSpy{tc.mockDecision, tc.mockVerifierError, false}
+			ccSpy := customerVerifierSpy{tc.mockVerifierError, false}
+			iShareVerifier = &iShareSpy
+			customerCredentialsVerifier = &ccSpy
 
-		log.Info("TestVerify +++++++++++++++++ Running test: ", tc.testName)
-		issuerRepo = &mockRepo{tc.mockIssuer, tc.mockRepoError}
-		iShareSpy := iShareVerifierSpy{tc.mockDecision, tc.mockVerifierError, false}
-		ccSpy := customerVerifierSpy{tc.mockVerifierError, false}
-		iShareVerifier = &iShareSpy
-		customerCredentialsVerifier = &ccSpy
+			clock = &mockClock{}
+			verifier := FiwareVerifier{}
 
-		clock = &mockClock{}
-		verifier := FiwareVerifier{}
+			decision, httpErr := verifier.Verify(tc.testCredential)
 
-		decision, httpErr := verifier.Verify(tc.testCredential)
-
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Unexpected error. Excpected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
-		}
-		if decision.Decision != tc.expectedDecision.Decision {
-			t.Errorf("%s: Unexpected decision. Excpected: %v, Actual: %v", tc.testName, tc.expectedDecision, decision)
-		}
-		if tc.expectedIShare != iShareSpy.requested {
-			t.Errorf("%s: IShare spy was not requested as it was expected. Expected: %v, Actual: %v", tc.testName, tc.expectedIShare, iShareSpy.requested)
-		}
-		if tc.expectedCustomerCred != ccSpy.requested {
-			t.Errorf("%s: Customer credentials spy was not requested as it was expected. Expected: %v, Actual: %v", tc.testName, tc.expectedCustomerCred, ccSpy.requested)
-		}
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Unexpected error. Excpected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
+			}
+			if decision.Decision != tc.expectedDecision.Decision {
+				t.Errorf("%s: Unexpected decision. Excpected: %v, Actual: %v", tc.testName, tc.expectedDecision, decision)
+			}
+			if tc.expectedIShare != iShareSpy.requested {
+				t.Errorf("%s: IShare spy was not requested as it was expected. Expected: %v, Actual: %v", tc.testName, tc.expectedIShare, iShareSpy.requested)
+			}
+			if tc.expectedCustomerCred != ccSpy.requested {
+				t.Errorf("%s: Customer credentials spy was not requested as it was expected. Expected: %v, Actual: %v", tc.testName, tc.expectedCustomerCred, ccSpy.requested)
+			}
+		})
 	}
 }
 
@@ -245,15 +247,15 @@ func noIssuerCredential() model.DSBAVerifiableCredential {
 		Type:         []string{"CustomerCredential", "VerifiableCredential"},
 		IssuanceDate: "2022-11-23T15:23:13Z",
 		CredentialSubject: model.CredentialSubject{
-			Id: "did:elsi:cs",
-			IShareCredentialsSubject: &model.IShareCredentialsSubject{
+			Id:                       "did:elsi:cs",
+			IShareCredentialsSubject: &model.IShareCredentialsSubject{},
+			Roles: &model.Roles{
 				Roles: []model.Role{
 					{
 						Names:  []string{"MY_ROLE"},
 						Target: "did:my:pdp",
 					},
-				},
-			},
+				}},
 		},
 	}
 }
@@ -265,14 +267,13 @@ func validCredential() model.DSBAVerifiableCredential {
 		IssuanceDate: "2022-11-23T15:23:13Z",
 		CredentialSubject: model.CredentialSubject{
 			Id: "did:elsi:cs",
-			IShareCredentialsSubject: &model.IShareCredentialsSubject{
+			Roles: &model.Roles{
 				Roles: []model.Role{
 					{
 						Names:  []string{"MY_ROLE"},
 						Target: "did:my:pdp",
 					},
-				},
-			},
+				}},
 		},
 	}
 }
@@ -288,13 +289,14 @@ func validIShareCredential() model.DSBAVerifiableCredential {
 				AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
 					"AR": {Host: "my.other.ar"},
 				},
+			},
+			Roles: &model.Roles{
 				Roles: []model.Role{
 					{
 						Names:  []string{"MY_ROLE"},
 						Target: "did:my:pdp",
 					},
-				},
-			},
+				}},
 		},
 	}
 }

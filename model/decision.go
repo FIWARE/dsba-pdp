@@ -59,6 +59,11 @@ type CredentialSubject struct {
 	Id string `json:"id,omitempty"`
 	*GaiaXSubject
 	*IShareCredentialsSubject
+	*Roles
+}
+
+type Roles struct {
+	Roles []Role `json:"roles,omitempty"`
 }
 
 type GaiaXSubject struct {

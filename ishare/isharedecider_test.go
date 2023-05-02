@@ -173,7 +173,7 @@ func getNoRoleDSBAToken() model.DSBAToken {
 		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{},
+				Roles: &model.Roles{},
 			},
 		},
 	}
@@ -184,14 +184,16 @@ func getIShareDSBAToken() model.DSBAToken {
 		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{
-					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
-				},
 				IShareCredentialsSubject: &model.IShareCredentialsSubject{
 					AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
 						"myAr": {
 							Host: "ar.org",
 						},
+					},
+				},
+				Roles: &model.Roles{
+					Roles: []model.Role{
+						{Names: []string{"CUSTOMER"}, Target: "myPdp"},
 					},
 				},
 			},
@@ -204,8 +206,11 @@ func getDSBAToken() model.DSBAToken {
 		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{
-					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
+				IShareCredentialsSubject: &model.IShareCredentialsSubject{},
+				Roles: &model.Roles{
+					Roles: []model.Role{
+						{Names: []string{"CUSTOMER"}, Target: "myPdp"},
+					},
 				},
 			},
 		},
