@@ -149,7 +149,7 @@ func TestDecide(t *testing.T) {
 		mr := mockRegistry{mockEvidence: tc.mockEvidence, mockError: tc.mockError}
 		decider := NewIShareDecider(&mr, mockConfig{providerId: tc.testProviderId})
 		logger.Debugf("Test path %s", tc.testAddress)
-		decision, httpErr := decider.Decide(&tc.testToken, tc.testAddress, tc.testRequestType, tc.testRequestBody)
+		decision, httpErr := decider.Decide(tc.testToken.VerifiableCredential, tc.testAddress, tc.testRequestType, tc.testRequestBody)
 		if httpErr.Status != tc.expectedError.Status {
 			t.Errorf("%s: Unexpected error on decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
 		}
@@ -170,10 +170,10 @@ func getBadGatewayError() model.HttpError {
 
 func getNoRoleDSBAToken() model.DSBAToken {
 	return model.DSBAToken{
-		VerifiableCredential: model.DSBAVerifiableCredential{
+		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{},
+				Roles: &model.Roles{},
 			},
 		},
 	}
@@ -181,17 +181,19 @@ func getNoRoleDSBAToken() model.DSBAToken {
 
 func getIShareDSBAToken() model.DSBAToken {
 	return model.DSBAToken{
-		VerifiableCredential: model.DSBAVerifiableCredential{
+		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{
-					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
-				},
 				IShareCredentialsSubject: &model.IShareCredentialsSubject{
 					AuthorizationRegistries: &map[string]model.AuthorizationRegistry{
 						"myAr": {
 							Host: "ar.org",
 						},
+					},
+				},
+				Roles: &model.Roles{
+					Roles: []model.Role{
+						{Names: []string{"CUSTOMER"}, Target: "myPdp"},
 					},
 				},
 			},
@@ -201,11 +203,14 @@ func getIShareDSBAToken() model.DSBAToken {
 
 func getDSBAToken() model.DSBAToken {
 	return model.DSBAToken{
-		VerifiableCredential: model.DSBAVerifiableCredential{
+		VerifiableCredential: &model.DSBAVerifiableCredential{
 			Issuer: "myIssuer",
 			CredentialSubject: model.CredentialSubject{
-				Roles: []model.Role{
-					{Names: []string{"CUSTOMER"}, Target: "myPdp"},
+				IShareCredentialsSubject: &model.IShareCredentialsSubject{},
+				Roles: &model.Roles{
+					Roles: []model.Role{
+						{Names: []string{"CUSTOMER"}, Target: "myPdp"},
+					},
 				},
 			},
 		},

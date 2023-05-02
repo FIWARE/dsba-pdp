@@ -41,7 +41,7 @@ func CheckRoles(claims *[]model.Claim, credentialSubject *model.CredentialSubjec
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("Claim %s does not allow any role assignment.", logging.PrettyPrintObject(roleClaim))}, err
 	}
 
-	for _, role := range credentialSubject.Roles {
+	for _, role := range credentialSubject.Roles.Roles {
 		if role.Target == envConfig.ProviderId() {
 			descision = isRoleAllowed(role.Names, roleClaim)
 			if !descision.Decision {

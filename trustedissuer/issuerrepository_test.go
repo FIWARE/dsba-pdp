@@ -122,35 +122,38 @@ func createIssuerSql(t *testing.T, tests []creationTest) {
 
 	log.Infof("TestCreateIssuer ----------------- TEST ON SQL-REPO -----------------")
 	for _, tc := range tests {
-		log.Infof("TestCreateIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		dbMock, sqlRepo := getSqlMock()
+		t.Run(tc.testName, func(t *testing.T) {
 
-		if tc.expectedError != (model.HttpError{}) {
-			// we do not expect anyhting in that case
-		} else {
-			// mapping is tested explicitly
-			dbIssuer := toSqlIssuer(tc.testIssuer)
-			dbMock.ExpectFind(rel.Eq("id", tc.testIssuer.Id)).Error(errors.New("no_such_issuer"))
-			dbMock.ExpectTransaction(func(r *reltest.Repository) {
-				r.ExpectInsert().For(&dbIssuer)
-				for _, cap := range dbIssuer.Capabilities {
-					r.ExpectUpdate().ForType("*sql.Capability")
-					for _, cl := range cap.Claims {
-						r.ExpectUpdate().ForType("*sql.Claim")
-						log.Info(cl)
+			log.Infof("TestCreateIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			dbMock, sqlRepo := getSqlMock()
+
+			if tc.expectedError != (model.HttpError{}) {
+				// we do not expect anyhting in that case
+			} else {
+				// mapping is tested explicitly
+				dbIssuer := toSqlIssuer(tc.testIssuer)
+				dbMock.ExpectFind(rel.Eq("id", tc.testIssuer.Id)).Error(errors.New("no_such_issuer"))
+				dbMock.ExpectTransaction(func(r *reltest.Repository) {
+					r.ExpectInsert().For(&dbIssuer)
+					for _, cap := range dbIssuer.Capabilities {
+						r.ExpectUpdate().ForType("*sql.Capability")
+						for _, cl := range cap.Claims {
+							r.ExpectUpdate().ForType("*sql.Claim")
+							log.Info(cl)
+						}
 					}
-				}
-			})
-		}
+				})
+			}
 
-		httpError := sqlRepo.CreateIssuer(tc.testIssuer)
+			httpError := sqlRepo.CreateIssuer(tc.testIssuer)
 
-		// only test on status, to allow the reason beeing implementation specific
-		if httpError.Status != tc.expectedError.Status {
-			t.Errorf("%s: Issuer creation through unexpected error. Expected: %v, Actual: %v.", tc.testName, tc.expectedError, httpError)
-		}
+			// only test on status, to allow the reason beeing implementation specific
+			if httpError.Status != tc.expectedError.Status {
+				t.Errorf("%s: Issuer creation through unexpected error. Expected: %v, Actual: %v.", tc.testName, tc.expectedError, httpError)
+			}
 
-		dbMock.AssertExpectations(t)
+			dbMock.AssertExpectations(t)
+		})
 	}
 
 	// conflict test
@@ -170,29 +173,32 @@ func createIssuerInMemory(t *testing.T, tests []creationTest) {
 
 	log.Infof("TestCreateIssuer ----------------- TEST ON INMEMORY-REPO -----------------")
 	for _, tc := range tests {
-		log.Infof("TestCreateIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		inMemoryRepo := NewInmemoryRepo()
-		httpError := inMemoryRepo.CreateIssuer(tc.testIssuer)
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Infof("TestCreateIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			inMemoryRepo := NewInmemoryRepo()
+			httpError := inMemoryRepo.CreateIssuer(tc.testIssuer)
 
-		// only test on status, to allow the reason beeing implementation specific
-		if httpError.Status != tc.expectedError.Status {
-			t.Errorf("%s: Issuer creation through unexpected error. Expected: %v, Actual: %v.", tc.testName, tc.expectedError, httpError)
-		}
-
-		if tc.expectedError != (model.HttpError{}) {
-			_, ok := (*inMemoryRepo.issuerMap)[tc.testIssuer.Id]
-			if ok {
-				t.Errorf("%s: The issuer should not be stored in error cases.", tc.testName)
+			// only test on status, to allow the reason beeing implementation specific
+			if httpError.Status != tc.expectedError.Status {
+				t.Errorf("%s: Issuer creation through unexpected error. Expected: %v, Actual: %v.", tc.testName, tc.expectedError, httpError)
 			}
-			continue
-		}
-		trustedissuer, ok := (*inMemoryRepo.issuerMap)[tc.testIssuer.Id]
-		if !ok {
-			t.Errorf("%s: The issuer should have been stored, but was not.", tc.testName)
-		}
-		if trustedissuer != tc.testIssuer {
-			t.Errorf("%s: The issuer was not stored as expected. Expected: %v, Actual: %v.", tc.testName, trustedissuer, trustedissuer)
-		}
+
+			if tc.expectedError != (model.HttpError{}) {
+				_, ok := (*inMemoryRepo.issuerMap)[tc.testIssuer.Id]
+				if ok {
+					t.Errorf("%s: The issuer should not be stored in error cases.", tc.testName)
+				}
+				return
+			}
+			trustedissuer, ok := (*inMemoryRepo.issuerMap)[tc.testIssuer.Id]
+			if !ok {
+				t.Errorf("%s: The issuer should have been stored, but was not.", tc.testName)
+			}
+			if trustedissuer != tc.testIssuer {
+				t.Errorf("%s: The issuer was not stored as expected. Expected: %v, Actual: %v.", tc.testName, trustedissuer, trustedissuer)
+			}
+		})
+
 	}
 
 	// conflict test
@@ -216,48 +222,52 @@ func TestGetIssuer(t *testing.T) {
 func testGetIssuerInMemory(t *testing.T) {
 	log.Infof("TestGetIssuer ----------------- TEST ON INMEMORY-REPO -----------------")
 	for _, tc := range getRetrievalTests() {
-		log.Infof("TestGetIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		inMemoryRepo := NewInmemoryRepo()
-		for _, dbIssuer := range tc.dbIssuers {
-			(*inMemoryRepo.issuerMap)[dbIssuer.Id] = dbIssuer
-		}
-		issuer, httpErr := inMemoryRepo.GetIssuer(tc.issuerId)
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
-		}
-		expectedString := logging.PrettyPrintObject(tc.expectedIssuer)
-		receivedString := logging.PrettyPrintObject(issuer)
-		if expectedString != receivedString {
-			t.Errorf("%s: Did not receive the expected issuer. Expected: %s, Actual: %s", tc.testName, expectedString, receivedString)
-		}
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Infof("TestGetIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			inMemoryRepo := NewInmemoryRepo()
+			for _, dbIssuer := range tc.dbIssuers {
+				(*inMemoryRepo.issuerMap)[dbIssuer.Id] = dbIssuer
+			}
+			issuer, httpErr := inMemoryRepo.GetIssuer(tc.issuerId)
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
+			}
+			expectedString := logging.PrettyPrintObject(tc.expectedIssuer)
+			receivedString := logging.PrettyPrintObject(issuer)
+			if expectedString != receivedString {
+				t.Errorf("%s: Did not receive the expected issuer. Expected: %s, Actual: %s", tc.testName, expectedString, receivedString)
+			}
+		})
 	}
 }
 
 func testGetIssuerMySql(t *testing.T) {
 	log.Infof("TestGetIssuer ----------------- TEST ON MYSQL-REPO -----------------")
 	for _, tc := range getRetrievalTests() {
-		log.Infof("TestGetIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		dbMock, sqlRepo := getSqlMock()
-		reqMocked := false
-		for _, dbIssuer := range tc.dbIssuers {
-			dbMock.ExpectFind(rel.Eq("id", dbIssuer.Id)).Result(toSqlIssuer(dbIssuer))
-			if dbIssuer.Id == tc.issuerId {
-				reqMocked = true
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Infof("TestGetIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			dbMock, sqlRepo := getSqlMock()
+			reqMocked := false
+			for _, dbIssuer := range tc.dbIssuers {
+				dbMock.ExpectFind(rel.Eq("id", dbIssuer.Id)).Result(toSqlIssuer(dbIssuer))
+				if dbIssuer.Id == tc.issuerId {
+					reqMocked = true
+				}
 			}
-		}
-		if !reqMocked {
-			dbMock.ExpectFind(rel.Eq("id", tc.issuerId)).Error(errors.New("no_such_issuer"))
-		}
+			if !reqMocked {
+				dbMock.ExpectFind(rel.Eq("id", tc.issuerId)).Error(errors.New("no_such_issuer"))
+			}
 
-		issuer, httpErr := sqlRepo.GetIssuer(tc.issuerId)
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
-		}
-		expectedString := logging.PrettyPrintObject(tc.expectedIssuer)
-		receivedString := logging.PrettyPrintObject(issuer)
-		if expectedString != receivedString {
-			t.Errorf("%s: Did not receive the expected issuer. Expected: %s, Actual: %s", tc.testName, expectedString, receivedString)
-		}
+			issuer, httpErr := sqlRepo.GetIssuer(tc.issuerId)
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
+			}
+			expectedString := logging.PrettyPrintObject(tc.expectedIssuer)
+			receivedString := logging.PrettyPrintObject(issuer)
+			if expectedString != receivedString {
+				t.Errorf("%s: Did not receive the expected issuer. Expected: %s, Actual: %s", tc.testName, expectedString, receivedString)
+			}
+		})
 	}
 }
 
@@ -271,74 +281,70 @@ func TestDeleteIssuer(t *testing.T) {
 func testDeleteIssuerInMemory(t *testing.T) {
 	log.Infof("TestDeleteIssuer ----------------- TEST ON INMEMORY-REPO -----------------")
 	for _, tc := range getDeletionTests() {
-		log.Infof("TestDeleteIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		inMemoryRepo := NewInmemoryRepo()
-		for _, dbIssuer := range tc.dbIssuers {
-			(*inMemoryRepo.issuerMap)[dbIssuer.Id] = dbIssuer
-		}
-		httpErr := inMemoryRepo.DeleteIssuer(tc.issuerId)
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
-		}
-		if tc.expectedError == (model.HttpError{}) {
-			_, ok := (*inMemoryRepo.issuerMap)[tc.issuerId]
-			if ok {
-				t.Errorf("%s: The issuer should have been deleted.", tc.testName)
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Infof("TestDeleteIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			inMemoryRepo := NewInmemoryRepo()
+			for _, dbIssuer := range tc.dbIssuers {
+				(*inMemoryRepo.issuerMap)[dbIssuer.Id] = dbIssuer
 			}
-		}
+			httpErr := inMemoryRepo.DeleteIssuer(tc.issuerId)
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
+			}
+			if tc.expectedError == (model.HttpError{}) {
+				_, ok := (*inMemoryRepo.issuerMap)[tc.issuerId]
+				if ok {
+					t.Errorf("%s: The issuer should have been deleted.", tc.testName)
+				}
+			}
+		})
 	}
 }
 
 func testDeleteIssuerSql(t *testing.T) {
 	log.Infof("TestDeleteIssuer ----------------- TEST ON MYSQL-REPO -----------------")
 	for _, tc := range getDeletionTests() {
-		log.Infof("TestDeleteIssuer +++++++++++++++++ Running test: %s", tc.testName)
-		dbMock, sqlRepo := getSqlMock()
-		reqMocked := false
-		for _, dbIssuer := range tc.dbIssuers {
-			if dbIssuer.Id == tc.issuerId {
-				logger.Infof("%s: Mock get for %s", tc.testName, dbIssuer.Id)
-				sqlIssuer := toSqlIssuer(dbIssuer)
-				dbMock.ExpectFind(rel.Where(where.Eq("id", dbIssuer.Id))).Result(sqlIssuer)
-			}
-		}
-
-		if !reqMocked {
-			dbMock.ExpectFind(rel.Eq("id", tc.issuerId)).Error(errors.New("no_such_issuer"))
-		}
-		if tc.expectedError == (model.HttpError{}) {
-			var issuer sql.TrustedIssuer
-			for _, dbI := range tc.dbIssuers {
-				if dbI.Id == tc.issuerId {
-					issuer = toSqlIssuer(dbI)
+		t.Run(tc.testName, func(t *testing.T) {
+			log.Infof("TestDeleteIssuer +++++++++++++++++ Running test: %s", tc.testName)
+			dbMock, sqlRepo := getSqlMock()
+			reqMocked := false
+			for _, dbIssuer := range tc.dbIssuers {
+				if dbIssuer.Id == tc.issuerId {
+					logger.Infof("%s: Mock get for %s", tc.testName, dbIssuer.Id)
+					sqlIssuer := toSqlIssuer(dbIssuer)
+					dbMock.ExpectFind(rel.Where(where.Eq("id", dbIssuer.Id))).Result(sqlIssuer)
 				}
 			}
 
-			// mapping is tested explicitly
-			dbMock.ExpectTransaction(func(r *reltest.Repository) {
-				r.ExpectDelete().ForType("*sql.TrustedIssuer")
-				for _, cap := range issuer.Capabilities {
-					r.ExpectUpdate().ForType("*sql.Capability")
-					for _, cl := range cap.Claims {
-						r.ExpectUpdate().ForType("*sql.Claim")
-						log.Info(cl)
+			if !reqMocked {
+				dbMock.ExpectFind(rel.Eq("id", tc.issuerId)).Error(errors.New("no_such_issuer"))
+			}
+			if tc.expectedError == (model.HttpError{}) {
+				var issuer sql.TrustedIssuer
+				for _, dbI := range tc.dbIssuers {
+					if dbI.Id == tc.issuerId {
+						issuer = toSqlIssuer(dbI)
 					}
 				}
-			})
-			dbMock.ExpectDelete().ForType("*sql.TrustedIssuer")
-		}
 
-		httpErr := sqlRepo.DeleteIssuer(tc.issuerId)
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
-		}
+				// mapping is tested explicitly
+				dbMock.ExpectTransaction(func(r *reltest.Repository) {
+					r.ExpectDelete().ForType("*sql.TrustedIssuer")
+					for _, cap := range issuer.Capabilities {
+						r.ExpectUpdate().ForType("*sql.Capability")
+						for _, cl := range cap.Claims {
+							r.ExpectUpdate().ForType("*sql.Claim")
+							log.Info(cl)
+						}
+					}
+				})
+				dbMock.ExpectDelete().ForType("*sql.TrustedIssuer")
+			}
+
+			httpErr := sqlRepo.DeleteIssuer(tc.issuerId)
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, httpErr)
+			}
+		})
 	}
-}
-
-func TestPutIssuer(t *testing.T) {
-
-}
-
-func TestGetIssuers(t *testing.T) {
-
 }

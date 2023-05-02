@@ -36,7 +36,12 @@ func (IShareCustomerCredentialVerifier) Verify(claims *[]model.Claim, credential
 		logger.Debugf("AR allowed, message: %s.", decision.Reason)
 	}
 
-	decision, httpErr = checkRoles(roleClaim, credentialSubject.Roles)
+	if credentialSubject.Roles == nil {
+		logger.Debugf("No roles contained in the credentials subject %s.", logging.PrettyPrintObject(credentialSubject))
+		return model.Decision{Decision: false, Reason: "No roles provided."}, httpErr
+	}
+
+	decision, httpErr = checkRoles(roleClaim, credentialSubject.Roles.Roles)
 	if httpErr != (model.HttpError{}) || !decision.Decision {
 		logger.Debugf("Role provider check result is %t, message: %s, error: %v", decision.Decision, decision.Reason, httpErr)
 		return decision, httpErr

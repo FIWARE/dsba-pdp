@@ -100,7 +100,7 @@ func isIShareVC(credentialSubject model.CredentialSubject) bool {
 	if credentialSubject.IShareCredentialsSubject != nil {
 		return true
 	}
-	for _, role := range credentialSubject.Roles {
+	for _, role := range credentialSubject.Roles.Roles {
 		if role.Provider != "" {
 			return true
 		}

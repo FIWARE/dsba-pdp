@@ -28,7 +28,12 @@ func (err HttpError) GetRoot() error {
 // token as used by the dsba-mvf
 
 type DSBAToken struct {
-	VerifiableCredential DSBAVerifiableCredential `json:"verifiableCredential"`
+	VerifiableCredential *DSBAVerifiableCredential `json:"verifiableCredential"`
+	jwt.RegisteredClaims
+}
+
+type GaiaXToken struct {
+	VerifiablePresentation []interface{} `json:"verifiablePresentation"`
 	jwt.RegisteredClaims
 }
 
@@ -51,7 +56,16 @@ type Role struct {
 }
 
 type CredentialSubject struct {
-	Id    string `json:"id,omitempty"`
-	Roles []Role `json:"roles,omitempty"`
+	Id string `json:"id,omitempty"`
+	*GaiaXSubject
 	*IShareCredentialsSubject
+	*Roles
+}
+
+type Roles struct {
+	Roles []Role `json:"roles,omitempty"`
+}
+
+type GaiaXSubject struct {
+	Type string `json:"type,omitempty"`
 }

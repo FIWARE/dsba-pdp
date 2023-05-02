@@ -174,7 +174,7 @@ func (th *TokenHandler) GetKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 		intermediatePool.AddCert(parsedCert)
 	}
 
-	logger.Debugf("Its now %v", th.Clock.Now())
+	logger.Tracef("Its now %v", th.Clock.Now())
 	opts := x509.VerifyOptions{Roots: rootPool, Intermediates: intermediatePool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}, CurrentTime: th.Clock.Now()}
 	if _, err := clientCert.Verify(opts); err != nil {
 		logger.Warnf("The cert could not be verified.")
@@ -200,7 +200,7 @@ func (tokenHandler *TokenHandler) GetTokenFromAR(authorizationRegistry *model.Au
 		"client_id":             {iShareClientId},
 	}
 
-	logger.Debugf("Accessing ar %s with id %s and token %s", authorizationRegistry.GetTokenAddress(), iShareClientId, signedToken)
+	logger.Tracef("Accessing ar %s with id %s and token %s", authorizationRegistry.GetTokenAddress(), iShareClientId, signedToken)
 
 	// get the token
 	tokenResponse, err := globalHttpClient.PostForm(authorizationRegistry.GetTokenAddress(), requestData)
