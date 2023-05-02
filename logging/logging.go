@@ -88,6 +88,8 @@ func init() {
 		logger.SetLevel(logrus.WarnLevel)
 	} else if logLevel == "ERROR" {
 		logger.SetLevel(logrus.ErrorLevel)
+	} else if logLevel == "TRACE" {
+		logger.SetLevel(logrus.TraceLevel)
 	}
 
 	if enableJsonLogging {

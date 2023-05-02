@@ -9,7 +9,7 @@ import (
 // interface of the configured decider
 
 type Decider interface {
-	Decide(token *model.DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (descision model.Decision, err model.HttpError)
+	Decide(credential *model.DSBAVerifiableCredential, originalAddress string, requestType string, requestBody *map[string]interface{}) (descision model.Decision, err model.HttpError)
 }
 
 type Clock interface {

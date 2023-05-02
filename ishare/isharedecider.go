@@ -24,11 +24,10 @@ func NewIShareDecider(ar AuthorizationRegistry, config config.Config) *IShareDec
 	return iShareDecider
 }
 
-func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision model.Decision, httpErr model.HttpError) {
+func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCredential, originalAddress string, requestType string, requestBody *map[string]interface{}) (decision model.Decision, httpErr model.HttpError) {
 
 	// we need to use this as request target to check request towards ourself
 	requestTarget := iShareClientId
-	verifiableCredential := token.VerifiableCredential
 	logger.Debugf("Received VC: %s,", logging.PrettyPrintObject(verifiableCredential))
 	logger.Debugf("Creating decision for request %s - %s.", requestType, originalAddress)
 	roleIssuer := isd.envConfig.ProviderId()
@@ -38,7 +37,7 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 
 	credentialsSubject := verifiableCredential.CredentialSubject
 
-	if len(credentialsSubject.Roles) == 0 {
+	if len(credentialsSubject.Roles.Roles) == 0 {
 		return model.Decision{Decision: false, Reason: fmt.Sprintf("The VC %s does not contain any roles.", logging.PrettyPrintObject(credentialsSubject))}, httpErr
 	}
 
@@ -46,20 +45,9 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 	if httpErr != (model.HttpError{}) {
 		return decision, httpErr
 	}
+	logger.Debugf("Require policies: %s", logging.PrettyPrintObject(requiredPolicies))
 
-	// in case of an IShareCustomerCredential, we need to check if the role-issuer has enough rights to access the request-target, before checking the delegation, e.g. the roles
-	if credentialsSubject.IShareCredentialsSubject != nil {
-
-		decision, httpErr = isd.checkIShareTarget(requestTarget, roleIssuer, &requiredPolicies)
-		if httpErr != (model.HttpError{}) {
-			return decision, httpErr
-		}
-		if decision.Decision {
-			return decision, httpErr
-		}
-	}
-
-	for _, role := range credentialsSubject.Roles {
+	for _, role := range credentialsSubject.Roles.Roles {
 
 		if role.Target == isd.envConfig.ProviderId() {
 			var authorizationRegistry *model.AuthorizationRegistry
@@ -75,7 +63,7 @@ func (isd IShareDecider) Decide(token *model.DSBAToken, originalAddress string, 
 				return decision, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("No authorization registry configured for the role provider %s.", role.Provider)}
 			}
 
-			decision, httpErr = isd.decideForRole(requestTarget, roleIssuer, role, authorizationRegistry, &requiredPolicies)
+			decision, httpErr = isd.decideForRole(requestTarget, authorizationRegistry.Id, role, authorizationRegistry, &requiredPolicies)
 			if httpErr != (model.HttpError{}) {
 				return decision, httpErr
 			}
@@ -102,6 +90,7 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 }
 
 func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
+	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
 	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))

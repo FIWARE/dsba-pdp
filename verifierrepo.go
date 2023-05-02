@@ -59,7 +59,7 @@ func NewVerifierRepository() *VerifierRepository {
 }
 
 func (verifierRepository *VerifierRepository) UpdateKeyMap(ctx context.Context) {
-	logger.Debug("Updating the key map.")
+	logger.Tracef("Updating the key map.")
 	for _, tv := range verifierRepository.verifiers {
 		keyset, err := verifierRepository.jwkCache.Get(context.Background(), tv)
 		if err != nil {
@@ -67,10 +67,10 @@ func (verifierRepository *VerifierRepository) UpdateKeyMap(ctx context.Context) 
 			// force a refresh. if the verifier is not available on last get, the cached object is not valid and needs to be fetched
 			verifierRepository.jwkCache.Refresh(context.Background(), tv)
 		} else {
-			logger.Debugf("Got keys %v", keyset)
+			logger.Tracef("Got keys %v", keyset)
 			for key := keyset.Keys(context.Background()); key.Next(context.Background()); {
 				keyId := key.Pair().Value.(jwk.Key).KeyID()
-				logger.Debugf("Update key %s.", keyId)
+				logger.Tracef("Update key %s.", keyId)
 				verifierRepository.keyMap[keyId] = key.Pair().Value.(jwk.Key)
 			}
 		}
