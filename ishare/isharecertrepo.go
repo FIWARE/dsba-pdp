@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,20 +30,22 @@ var satelliteURL = "https://scheme.isharetest.net"
 var satelliteId = "EU.EORI.NL000000000"
 var satelliteTokenPath = "/connect/token"
 var satelliteTrustedListPath = "/trusted_list"
+var satellitePartyPath = "/party/"
 var updateRateInS = 5
 
 type TrustedParticipantRepository interface {
-	IsTrusted(certificate *x509.Certificate) (isTrusted bool)
+	IsTrusted(caCertificate *x509.Certificate, clientCertificate *x509.Certificate, clientId string) (isTrusted bool)
 }
 
 type IShareTrustedParticipantRepository struct {
-	satelliteAr         *model.AuthorizationRegistry
-	trustedFingerprints []string
-	tokenFunc           TokenFunc
-	parserFunc          TrustedListParseFunc
+	satelliteAr           *model.AuthorizationRegistry
+	trustedFingerprints   []string
+	tokenFunc             TokenFunc
+	trustedListParserFunc TrustedListParseFunc
+	partyParseFunc        PartyParseFunc
 }
 
-func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedListParseFunc) *IShareTrustedParticipantRepository {
+func NewTrustedParticipantRepository(tokenFunc TokenFunc, trustedListParserFunc TrustedListParseFunc, partyParseFunc PartyParseFunc) *IShareTrustedParticipantRepository {
 
 	trustedParticipantRepo := new(IShareTrustedParticipantRepository)
 
@@ -84,7 +87,8 @@ func NewTrustedParticipantRepository(tokenFunc TokenFunc, parserFunc TrustedList
 	logger.Debugf("Using satellite %s as trust anchor.", logging.PrettyPrintObject(ar))
 	trustedParticipantRepo.satelliteAr = &ar
 	trustedParticipantRepo.tokenFunc = tokenFunc
-	trustedParticipantRepo.parserFunc = parserFunc
+	trustedParticipantRepo.trustedListParserFunc = trustedListParserFunc
+	trustedParticipantRepo.partyParseFunc = partyParseFunc
 
 	trustedParticipantRepo.scheduleTrustedListUpdate(updateRateInS)
 
@@ -96,12 +100,36 @@ func (icr IShareTrustedParticipantRepository) scheduleTrustedListUpdate(updateRa
 	taskScheduler.ScheduleAtFixedRate(icr.updateTrustedFingerprints, time.Duration(updateRateInS)*time.Second)
 }
 
-func (icr IShareTrustedParticipantRepository) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
-	certificateFingerPrint := buildCertificateFingerprint(certificate)
+func (icr IShareTrustedParticipantRepository) IsTrusted(caCertificate *x509.Certificate, clientCertificate *x509.Certificate, clientId string) (isTrusted bool) {
+	// check against trusted cas
+	certificateFingerPrint := buildCertificateFingerprint(caCertificate)
 	logger.Tracef("Checking certificate with fingerprint %s.", string(certificateFingerPrint))
 	if contains(icr.trustedFingerprints, certificateFingerPrint) {
 		logger.Tracef("The presented certificate is trusted.")
 		return true
+	}
+
+	// ca is not listed, check just the party
+	trustedParty, err := icr.getTrustedParty(clientId)
+	if err != (model.HttpError{}) {
+		logger.Infof("Was not able to get party info for %s. Err: %v", clientId, err)
+		return false
+	}
+	for _, cert := range *trustedParty.Certificates {
+		decodedCert, err := base64.StdEncoding.DecodeString(cert.X5c)
+		if err != nil {
+			logger.Warnf("The cert could not be decoded. Cert: %s", cert.X5c)
+			return false
+		}
+		parsedCert, err := x509.ParseCertificate(decodedCert)
+		if err != nil {
+			logger.Warnf("The cert could not be parsed. Cert: %s", cert.X5c)
+			return false
+		}
+		if buildCertificateFingerprint(parsedCert) == buildCertificateFingerprint(clientCertificate) {
+			logger.Tracef("The presented certificate is listed for party %s.", clientId)
+			return true
+		}
 	}
 	return false
 }
@@ -129,6 +157,46 @@ func (icr IShareTrustedParticipantRepository) updateTrustedFingerprints(ctx cont
 	}
 	icr.trustedFingerprints = updatedFingerPrints
 	logger.Tracef("Updated trusted fingerprints to: %s", icr.trustedFingerprints)
+}
+
+func (icr IShareTrustedParticipantRepository) getTrustedParty(id string) (trustedParty *model.PartyInfo, httpErr model.HttpError) {
+	accessToken, httpErr := icr.tokenFunc(icr.satelliteAr)
+	if httpErr != (model.HttpError{}) {
+		logger.Debugf("Was not able to get a token from the satellite at %s.", logging.PrettyPrintObject(icr.satelliteAr))
+		return trustedParty, httpErr
+	}
+	partyURL := icr.satelliteAr.Host + satellitePartyPath + id
+
+	partyRequest, err := http.NewRequest("GET", partyURL, nil)
+	if err != nil {
+		logger.Debug("Was not able to create the trustedlist request.")
+		return trustedParty, model.HttpError{Status: http.StatusInternalServerError, Message: "Was not able to create the request to the trusted list.", RootError: err}
+	}
+	partyRequest.Header.Set("Authorization", "Bearer "+accessToken)
+	partyResponse, err := globalHttpClient.Do(partyRequest)
+	if err != nil || partyResponse == nil {
+		logger.Warnf("Was not able to get the trusted party %s from the satellite at %s.", id, logging.PrettyPrintObject(icr.satelliteAr))
+		return trustedParty, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to retrieve the trusted list.", RootError: err}
+	}
+	if partyResponse.StatusCode != 200 {
+		logger.Warnf("Was not able to get the trusted party %s. Status: %s, Message: %v", id, partyResponse.Status, partyResponse.Body)
+		return trustedParty, model.HttpError{Status: http.StatusBadGateway, Message: "Was not able to retrieve the trusted party."}
+	}
+
+	var partyResponseObject model.TrustedPartyResponse
+	err = json.NewDecoder(partyResponse.Body).Decode(&partyResponseObject)
+	if err != nil {
+		logger.Debugf("Was not able to decode the response body. Error: %v", err)
+		return trustedParty, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Received an invalid body from the satellite: %s", partyResponse.Body), RootError: err}
+	}
+
+	parsedToken, httpErr := icr.partyParseFunc(partyResponseObject.PartyToken)
+	if httpErr != (model.HttpError{}) {
+		logger.Debugf("Was not able to decode the ar response. Error: %v", httpErr)
+		return trustedParty, httpErr
+	}
+	logger.Tracef("Trusted party response: %v", logging.PrettyPrintObject(parsedToken))
+	return parsedToken.PartyInfo, httpErr
 }
 
 func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]model.TrustedParticipant, httpErr model.HttpError) {
@@ -162,7 +230,7 @@ func (icr IShareTrustedParticipantRepository) getTrustedList() (trustedList *[]m
 		logger.Debugf("Was not able to decode the response body. Error: %v", err)
 		return trustedList, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Received an invalid body from the satellite: %s", trustedListResponse.Body), RootError: err}
 	}
-	parsedToken, httpErr := icr.parserFunc(trustedListResponseObject.TrustedListToken)
+	parsedToken, httpErr := icr.trustedListParserFunc(trustedListResponseObject.TrustedListToken)
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to decode the ar response. Error: %v", httpErr)
 		return trustedList, httpErr
