@@ -123,8 +123,31 @@ type TrustedListToken struct {
 	jwt.RegisteredClaims
 }
 
+type TrustedCertificate struct {
+	SubjectName    string `json:"subject_name"`
+	CertficateType string `json:"certifcate_type"`
+	EnabledFrom    string `json:"enabled_from"`
+	X5c            string `json:"x5c"`
+	X5cS256        string `json:"x5t#S256"`
+}
+
+type PartyInfo struct {
+	PartyId      string                `json:"party_id"`
+	PartyName    string                `json:"party_name"`
+	Certificates *[]TrustedCertificate `json:"certificates"`
+}
+
+type PartyToken struct {
+	PartyInfo *PartyInfo `json:"party_info"`
+	jwt.RegisteredClaims
+}
+
 type TrustedListResponse struct {
 	TrustedListToken string `json:"trusted_list_token"`
+}
+
+type TrustedPartyResponse struct {
+	PartyToken string `json:"party_token"`
 }
 
 func (ar AuthorizationRegistry) GetTokenAddress() string {

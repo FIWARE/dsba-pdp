@@ -20,7 +20,7 @@ type mockTrustedParticipantRepo struct {
 	isTrusted bool
 }
 
-func (mtpr *mockTrustedParticipantRepo) IsTrusted(certificate *x509.Certificate) (isTrusted bool) {
+func (mtpr *mockTrustedParticipantRepo) IsTrusted(caCertificate *x509.Certificate, clientCertificate *x509.Certificate, id string) (isTrusted bool) {
 	return mtpr.isTrusted
 }
 

@@ -90,7 +90,7 @@ func NewTokenHandler() (tokenHandler *TokenHandler) {
 
 	tokenHandler.Clock = RealClock{}
 
-	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.GetTokenFromAR, tokenHandler.ParseTrustedListToken)
+	trustedParticipantRepository := NewTrustedParticipantRepository(tokenHandler.GetTokenFromAR, tokenHandler.ParseTrustedListToken, tokenHandler.ParsePartyToken)
 	tokenHandler.trustedParticipantRepository = trustedParticipantRepository
 
 	return tokenHandler
@@ -123,6 +123,19 @@ func (th *TokenHandler) ParseTrustedListToken(tokenString string) (parsedToken *
 		return parsedToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Did not receive a valid token. Error: %v", err), RootError: err}
 	}
 	return token.Claims.(*model.TrustedListToken), httpErr
+}
+
+func (th *TokenHandler) ParsePartyToken(tokenString string) (parsedToken *model.PartyToken, httpErr model.HttpError) {
+	token, err := jwt.ParseWithClaims(tokenString, &model.PartyToken{}, func(t *jwt.Token) (interface{}, error) {
+		return th.GetKeyFromToken(t)
+	})
+	if err != nil {
+		return parsedToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Was not able to parse token. Error: %v", err), RootError: err}
+	}
+	if !token.Valid {
+		return parsedToken, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Did not receive a valid token. Error: %v", err), RootError: err}
+	}
+	return token.Claims.(*model.PartyToken), httpErr
 }
 
 func (th *TokenHandler) GetKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, err error) {
@@ -163,7 +176,7 @@ func (th *TokenHandler) GetKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 			return nil, err
 		}
 		if i == lastCert {
-			if !th.trustedParticipantRepository.IsTrusted(parsedCert) {
+			if !th.trustedParticipantRepository.IsTrusted(parsedCert, clientCert, token.Claims.(*jwt.StandardClaims).Issuer) {
 				logger.Warnf("Only trusted CAs are accepted.")
 				return nil, errors.New("untrusted_ca")
 			} else {
@@ -353,3 +366,4 @@ func (diskFileAccessor) ReadFile(filename string) ([]byte, error) {
 
 type TokenFunc func(*model.AuthorizationRegistry) (string, model.HttpError)
 type TrustedListParseFunc func(string) (*model.TrustedListToken, model.HttpError)
+type PartyParseFunc func(string) (*model.PartyToken, model.HttpError)
