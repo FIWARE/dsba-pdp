@@ -120,27 +120,28 @@ func TestGetDelegationEvidence(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			logger.Infof("TestGetDelegationEvidence +++++++++++++++++ Running test: %s", tc.testName)
+			globalHttpClient = &mockHttpClient{tc.mockDoResponse, tc.mockPost, tc.mockError}
+			registry := getIShareTestRegistry(tc.testKey, tc.testCertificates, tc.mockTrustCa)
+			delegationEvidence, httpErr := registry.GetDelegationEvidence("myIssuer", "myTarget", &[]model.Policy{}, &tc.testRegistry)
 
-		logger.Infof("TestGetDelegationEvidence +++++++++++++++++ Running test: %s", tc.testName)
-		globalHttpClient = &mockHttpClient{tc.mockDoResponse, tc.mockPost, tc.mockError}
-		registry := getIShareTestRegistry(tc.testKey, tc.testCertificates, tc.mockTrustCa)
-		delegationEvidence, httpErr := registry.GetDelegationEvidence("myIssuer", "myTarget", &[]model.Policy{}, &tc.testRegistry)
-
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Unexpected error. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
-		}
-		if (delegationEvidence == nil && tc.expectedEvidence != nil) || (delegationEvidence != nil && tc.expectedEvidence == nil) {
-			t.Errorf("%s: Unexpected evidence. Expected: %v, Actual: %v", tc.testName, tc.expectedEvidence, delegationEvidence)
-		}
-		if delegationEvidence == nil && tc.expectedEvidence == nil {
-			continue
-		}
-		logger.Debugf("%v and %v", delegationEvidence, tc.expectedEvidence)
-		stringEvidence := logging.PrettyPrintObject(*delegationEvidence)
-		stringExpectedEvidence := logging.PrettyPrintObject(*tc.expectedEvidence)
-		if stringEvidence != stringExpectedEvidence {
-			t.Errorf("%s: Unexpected evidence. Expected: %s, Actual: %s", tc.testName, stringExpectedEvidence, stringEvidence)
-		}
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Unexpected error. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
+			}
+			if (delegationEvidence == nil && tc.expectedEvidence != nil) || (delegationEvidence != nil && tc.expectedEvidence == nil) {
+				t.Errorf("%s: Unexpected evidence. Expected: %v, Actual: %v", tc.testName, tc.expectedEvidence, delegationEvidence)
+			}
+			if delegationEvidence == nil && tc.expectedEvidence == nil {
+				return
+			}
+			logger.Debugf("%v and %v", delegationEvidence, tc.expectedEvidence)
+			stringEvidence := logging.PrettyPrintObject(*delegationEvidence)
+			stringExpectedEvidence := logging.PrettyPrintObject(*tc.expectedEvidence)
+			if stringEvidence != stringExpectedEvidence {
+				t.Errorf("%s: Unexpected evidence. Expected: %s, Actual: %s", tc.testName, stringExpectedEvidence, stringEvidence)
+			}
+		})
 	}
 }
 
@@ -157,16 +158,19 @@ func TestGetSigningKeyErrors(t *testing.T) {
 
 	tests := []test{
 		{"When file access fails, return an error.", nil, errors.New("access_denied"), errors.New("access_denied")},
-		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
+		{"When file access returns an unparsable key, return an error.", []byte("noKey"), nil, errors.New("invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")},
 	}
 
 	for _, tc := range tests {
-		logger.Infof("TestGetSigningKeyErrors +++++++++++++++++ Running test: %s", tc.testName)
-		ishareFileAccessor = &mockFileAccessor{map[string][]byte{"myKey": tc.testKey}, map[string]error{"myKey": tc.mockError}}
-		_, err := getSigningKey("myKey")
-		if err.Error() != tc.expectedError.Error() {
-			t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, err)
-		}
+
+		t.Run(tc.testName, func(t *testing.T) {
+			logger.Infof("TestGetSigningKeyErrors +++++++++++++++++ Running test: %s", tc.testName)
+			ishareFileAccessor = &mockFileAccessor{map[string][]byte{"myKey": tc.testKey}, map[string]error{"myKey": tc.mockError}}
+			_, err := getSigningKey("myKey")
+			if err.Error() != tc.expectedError.Error() {
+				t.Errorf("%s: Received an unexpected error. Expected: %v, Actual: %v", tc.testName, tc.expectedError, err)
+			}
+		})
 	}
 }
 

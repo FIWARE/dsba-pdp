@@ -16,7 +16,7 @@ import (
 
 	"github.com/fiware/dsba-pdp/logging"
 	"github.com/fiware/dsba-pdp/model"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
 
@@ -176,7 +176,8 @@ func (th *TokenHandler) GetKeyFromToken(token *jwt.Token) (key *rsa.PublicKey, e
 			return nil, err
 		}
 		if i == lastCert {
-			if !th.trustedParticipantRepository.IsTrusted(parsedCert, clientCert, token.Claims.(*jwt.StandardClaims).Issuer) {
+			clientId := token.Claims.(model.ClientToken).GetIssuer()
+			if !th.trustedParticipantRepository.IsTrusted(parsedCert, clientCert, clientId) {
 				logger.Warnf("Only trusted CAs are accepted.")
 				return nil, errors.New("untrusted_ca")
 			} else {

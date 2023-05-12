@@ -92,9 +92,18 @@ type DelegationEvidence struct {
 	PolicySets   []PolicySet      `json:"policySets,omitempty"`
 }
 
+type ClientToken interface {
+	GetIssuer() string
+	Valid() error
+}
+
 type IShareToken struct {
 	DelegationEvidence DelegationEvidence `json:"delegationEvidence,omitempty"`
 	jwt.RegisteredClaims
+}
+
+func (ist IShareToken) GetIssuer() string {
+	return ist.Issuer
 }
 
 type IShareCredentialsSubject struct {
@@ -123,6 +132,10 @@ type TrustedListToken struct {
 	jwt.RegisteredClaims
 }
 
+func (ist TrustedListToken) GetIssuer() string {
+	return ist.Issuer
+}
+
 type TrustedCertificate struct {
 	SubjectName    string `json:"subject_name"`
 	CertficateType string `json:"certifcate_type"`
@@ -140,6 +153,10 @@ type PartyInfo struct {
 type PartyToken struct {
 	PartyInfo *PartyInfo `json:"party_info"`
 	jwt.RegisteredClaims
+}
+
+func (ist PartyToken) GetIssuer() string {
+	return ist.Issuer
 }
 
 type TrustedListResponse struct {
