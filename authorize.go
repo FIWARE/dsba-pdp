@@ -16,7 +16,6 @@ import (
 	"github.com/fiware/dsba-pdp/ishare"
 	"github.com/fiware/dsba-pdp/logging"
 	"github.com/fiware/dsba-pdp/model"
-	"github.com/fiware/dsba-pdp/trustedissuer"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -25,43 +24,19 @@ const originalAddressHeader = "X-Original-URI"
 const originalActionHeader = "X-Original-Action"
 
 var decider decision.Decider
-var verifier trustedissuer.IssuerVerifier
 var verifierRepository *VerifierRepository
 
 func init() {
 	logger.Debug("Initalize authorize.")
 
 	ishareEnabled, ishareErr := strconv.ParseBool(os.Getenv("ISHARE_ENABLED"))
-	ishareTrustedListEnabled, ishareTLErr := strconv.ParseBool(os.Getenv("ISHARE_TRUSTED_LIST_ENABLED"))
 
 	verifierRepository = NewVerifierRepository()
 	if ishareErr == nil && ishareEnabled {
 		logger.Info("iShare decider is enabled.")
 		decider = ishare.NewIShareDecider(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
 	}
-	if ishareTLErr == nil && ishareTrustedListEnabled {
-		logger.Info("Trustedlist based on the iShare AR is enabled. With this configuration, everything inside the internal trustedlist will be ignored.")
-		verifier = trustedissuer.NewAuthorizationRegistryVerifier(ishare.NewIShareAuthorizationRegistry(), config.EnvConfig{})
-	} else {
-		logger.Info("Use the FIWARE Verifier, based on the internal trusted list.")
-		verifier = &trustedissuer.FiwareVerifier{}
-	}
-	logger.Debugf("Ishare verifier enabled: %v, err: %v ", ishareTrustedListEnabled, ishareTLErr)
 
-}
-
-func verifyAtTrustedList(dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
-	// verify trust in the issuer
-	decision, httpErr = verifier.Verify(*dsbaCredential)
-	if httpErr != (model.HttpError{}) {
-		logger.Warnf("Did not receive a valid decision from the trusted issuer verfication. Error: %v - root: %v", httpErr, httpErr.RootError)
-		return decision, httpErr
-	}
-	if !decision.Decision {
-		logger.Debugf("Trusted issuer verficiation failed, because of: %s", decision.Reason)
-		return decision, httpErr
-	}
-	return decision, httpErr
 }
 
 func evaluatePolicies(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
@@ -92,10 +67,7 @@ func evaluatePolicies(c *gin.Context, dsbaCredential *model.DSBAVerifiableCreden
 }
 
 func verifyDSBACredential(c *gin.Context, dsbaCredential *model.DSBAVerifiableCredential) (decision model.Decision, httpErr model.HttpError) {
-	decision, httpErr = verifyAtTrustedList(dsbaCredential)
-	if !decision.Decision || httpErr != (model.HttpError{}) {
-		return decision, httpErr
-	}
+
 	return evaluatePolicies(c, dsbaCredential)
 }
 
@@ -188,14 +160,6 @@ func verifyGaiaXToken(c *gin.Context, gaiaXToken *model.GaiaXToken) (decision mo
 		logger.Warn("The user credential was not issued by the participant.")
 		logger.Debugf("UserCredential: %s, Participant: %s", logging.PrettyPrintObject(userCredential), logging.PrettyPrintObject(participantCredential))
 		return model.Decision{Decision: false, Reason: "UserCredential was not issued by the participant."}, httpErr
-	}
-
-	gaiaxIssuerCredential := model.DSBAVerifiableCredential{Issuer: "Gaia-X", CredentialSubject: userCredential.CredentialSubject, Type: userCredential.Type}
-	// we want to verify that only roles are contained, that are allowed through the gaia-x chain
-	decision, httpErr = verifyAtTrustedList(&gaiaxIssuerCredential)
-	if !decision.Decision || httpErr != (model.HttpError{}) {
-		logger.Info("Gaia-X participant was not allwed to issue that credential.")
-		return decision, httpErr
 	}
 
 	return evaluatePolicies(c, userCredential)
