@@ -69,3 +69,11 @@ type Roles struct {
 type GaiaXSubject struct {
 	Type string `json:"type,omitempty"`
 }
+
+type ProblemDetails struct {
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	Status   int    `json:"status"`
+	Detail   string `json:"detail,omitempty"`
+	Instance string `json:"instance,omitempty"`
+}

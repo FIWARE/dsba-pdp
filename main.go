@@ -7,7 +7,6 @@ import (
 
 	"github.com/fiware/dsba-pdp/http"
 	"github.com/fiware/dsba-pdp/logging"
-	"github.com/fiware/dsba-pdp/trustedissuer"
 	"github.com/penglongli/gin-metrics/ginmetrics"
 
 	"github.com/gin-gonic/gin"
@@ -34,16 +33,6 @@ func main() {
 
 	//pdp authz
 	router.POST("/authz", authorize)
-
-	// verification
-	router.POST("/verify", trustedissuer.VerifyIssuer)
-
-	//issuer list
-	router.POST("/issuer", trustedissuer.CreateTrustedIssuer)
-	router.GET("/issuer", trustedissuer.GetIssuers)
-	router.PUT("/issuer/:id", trustedissuer.ReplaceIssuer)
-	router.GET("/issuer/:id", trustedissuer.GetIssuerById)
-	router.DELETE("/issuer/:id", trustedissuer.DeleteIssuerById)
 
 	// initiate metrics
 	metrics := ginmetrics.GetMonitor()
