@@ -133,7 +133,8 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 	}
 
 	if !strings.Contains(requestedUrl.Path, ngsiPathIndicator) {
-		return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("The original address is not an ngsi request %s", originalAddress), RootError: err}
+		logger.Debugf("Received a non ngsi-ld path, will build http policies.")
+		return buildHttpPolicy(requestedUrl.Path, requestType)
 	}
 
 	plainPath := strings.ReplaceAll(requestedUrl.Path, ngsiPathIndicator, "")
@@ -161,6 +162,47 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 		return buildRequiredPoliciesForSingleAttr(entityId, pathParts[len(pathParts)-1], requestType)
 	}
 	return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("The request %s : %s is not supported by the IShareDecider.", requestType, originalAddress), RootError: nil}
+}
+
+// in case of non-ngsi requests, we build http-path requests.
+func buildHttpPolicy(path string, requestType string) (policies []model.Policy, httpErr model.HttpError) {
+	resourcePaths := buildResourcePaths(path)
+	for _, path := range resourcePaths {
+		policies = append(policies, model.Policy{
+			Target: &model.PolicyTarget{
+				Resource: &model.Resource{
+					Type:        "PATH",
+					Identifiers: []string{path},
+				},
+				Actions: []string{requestType}},
+			Rules: []model.Rule{{Effect: "Permit"}}})
+
+	}
+	return policies, httpErr
+}
+
+// create the resource paths. At least one of them needs to exist to be allowed
+func buildResourcePaths(path string) (paths []string) {
+	pathParts := strings.Split(path, "/")
+
+	for i, part := range pathParts {
+		if part == "" {
+			continue
+		}
+
+		starPath := "/"
+		currentPart := "/"
+		for ni, subPart := range pathParts {
+			if subPart != "" && ni < i {
+				starPath = starPath + subPart + "/"
+				currentPart = currentPart + subPart + "/"
+			}
+		}
+		paths = append(paths, starPath+"*")
+		paths = append(paths, currentPart+part)
+
+	}
+	return paths
 }
 
 func buildRequiredPoliciesForEntity(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
