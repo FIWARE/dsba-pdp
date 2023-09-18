@@ -80,7 +80,7 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 		logger.Debugf("Request decision for role %s and issuer %s.", role, roleIssuer)
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
-			logger.Debugf("Got error for %s", roleName)
+			logger.Debugf("Got error %s for %s", roleName, logging.PrettyPrintObject(httpErr))
 			return decision, httpErr
 		}
 		if decision.Decision {
