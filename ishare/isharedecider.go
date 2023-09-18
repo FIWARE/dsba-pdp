@@ -64,9 +64,11 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 
 			decision, httpErr = isd.decideForRole(requestTarget, authorizationRegistry.Id, role, authorizationRegistry, &requiredPolicies)
 			if httpErr != (model.HttpError{}) {
+				logger.Debugf("Got error %s for role %s.", logging.PrettyPrintObject(httpErr), role)
 				return decision, httpErr
 			}
 			if decision.Decision {
+				logger.Debugf("Got success for role %s.", role)
 				return decision, httpErr
 			}
 		}
