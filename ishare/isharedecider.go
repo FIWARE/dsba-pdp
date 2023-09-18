@@ -95,7 +95,7 @@ func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer stri
 	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
 	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
 	if httpErr.Status == 404 {
-		return model.Decision{Decision: false, Reason: "No such policy exists."}, httpErr
+		return model.Decision{Decision: false, Reason: "No such policy exists."}, model.HttpError{}
 	}
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
