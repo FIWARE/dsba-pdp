@@ -85,7 +85,7 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 			logger.Debugf("Got error %s for %s", roleName, logging.PrettyPrintObject(httpErr))
 			if httpErr.Status == 404 {
 				logger.Debug("404 error, drop the error.")
-				return model.Decision{Decision: false, Reason: "No matching policy found. "}, model.HttpError{}
+				continue
 			}
 			return decision, httpErr
 		}
