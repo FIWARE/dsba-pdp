@@ -48,7 +48,6 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 	logger.Debugf("Require policies: %s", logging.PrettyPrintObject(requiredPolicies))
 
 	for _, role := range credentialsSubject.Roles.Roles {
-
 		if role.Target == isd.envConfig.ProviderId() {
 			var authorizationRegistry *model.AuthorizationRegistry
 			if role.Provider == "" {
@@ -78,12 +77,14 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 
 func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, role model.Role, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	for _, roleName := range role.Names {
-		logger.Debugf("Request decision for role %s and issuer %s.", roleName, roleIssuer)
+		logger.Debugf("Request decision for role %s and issuer %s.", role, roleIssuer)
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
+			logger.Debugf("Got error for %s", roleName)
 			return decision, httpErr
 		}
 		if decision.Decision {
+			logger.Debugf("Got success for %s", roleName)
 			return decision, httpErr
 		}
 	}
@@ -93,6 +94,9 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
 	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
+	if httpErr.Status == 404 {
+		return model.Decision{Decision: false, Reason: "No such policy exists."}, httpErr
+	}
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
 		return decision, httpErr
