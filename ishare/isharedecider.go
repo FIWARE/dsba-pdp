@@ -78,6 +78,7 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 
 func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, role model.Role, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	for _, roleName := range role.Names {
+		logger.Debugf("Request decision for role %s and issuer %s.", roleName, roleIssuer)
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
 			return decision, httpErr
