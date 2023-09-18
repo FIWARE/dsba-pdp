@@ -181,6 +181,7 @@ func buildHttpPolicy(path string, requestType string) (policies []model.Policy, 
 				Resource: &model.Resource{
 					Type:        "PATH",
 					Identifiers: []string{path},
+					Attributes:  []string{},
 				},
 				Actions: []string{requestType}},
 			Rules: []model.Rule{{Effect: "Permit"}}})
