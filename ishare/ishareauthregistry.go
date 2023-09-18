@@ -149,7 +149,7 @@ func (iShareAuthRegistry *IShareAuthorizationRegistry) GetDelegationEvidence(iss
 
 	if delegationResponse.StatusCode != 200 && delegationResponse.StatusCode == 404 {
 		logger.Debugf("No policies found for issuer %s and subject %s at %s.", issuer, delegationTarget, authorizationRegistry.GetDelegationAddress())
-		return delegeationEvidence, model.HttpError{Status: http.StatusForbidden, Message: fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), RootError: nil}
+		return delegeationEvidence, model.HttpError{Status: http.StatusNotFound, Message: fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), RootError: nil}
 	} else if delegationResponse.StatusCode != 200 {
 		logger.Debugf("Received a %d from the ar.", delegationResponse.StatusCode)
 		return delegeationEvidence, model.HttpError{Status: http.StatusBadGateway, Message: fmt.Sprintf("Did not receive an ok from the ar. Status was: %v", delegationResponse.StatusCode), RootError: nil}
