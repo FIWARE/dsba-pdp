@@ -81,6 +81,9 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
 			logger.Debugf("Got error %s for %s", roleName, logging.PrettyPrintObject(httpErr))
+			if httpErr.Status == 404 {
+				return model.Decision{Decision: false, Reason: "No matching policy found. "}, model.HttpError{}
+			}
 			return decision, httpErr
 		}
 		if decision.Decision {
@@ -94,9 +97,6 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
 	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
-	if httpErr.Status == 404 {
-		return model.Decision{Decision: false, Reason: "No such policy exists."}, model.HttpError{}
-	}
 	if httpErr != (model.HttpError{}) {
 		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
 		return decision, httpErr
