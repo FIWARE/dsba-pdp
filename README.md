@@ -1,5 +1,9 @@
 # DSBA PDP
 
+[![FIWARE Security](https://nexus.lab.fiware.org/repository/raw/public/badges/chapters/security.svg)](https://www.fiware.org/developers/catalogue/)
+[![License badge](https://img.shields.io/github/license/fiware/dsba-pdp.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Container Repository on Quay](https://img.shields.io/badge/quay.io-fiware%2Fdsba--pdp-grey?logo=red%20hat&labelColor=EE0000)](https://quay.io/repository/fiware/dsba-pdp)
+
 Implementation of a Policy-Desicion Point, evaluating [Json-Web-Tokens](https://jwt.io/) containing VerifiableCredentials in an DSBA-compliant way. It also supports the evaluation in the context of [i4Trust](https://github.com/i4Trust).
 
 ## Quick start
