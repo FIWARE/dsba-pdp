@@ -48,7 +48,6 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 	logger.Debugf("Require policies: %s", logging.PrettyPrintObject(requiredPolicies))
 
 	for _, role := range credentialsSubject.Roles.Roles {
-
 		if role.Target == isd.envConfig.ProviderId() {
 			var authorizationRegistry *model.AuthorizationRegistry
 			if role.Provider == "" {
@@ -65,9 +64,11 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 
 			decision, httpErr = isd.decideForRole(requestTarget, authorizationRegistry.Id, role, authorizationRegistry, &requiredPolicies)
 			if httpErr != (model.HttpError{}) {
+				logger.Debugf("Got error %s for role %s.", logging.PrettyPrintObject(httpErr), role)
 				return decision, httpErr
 			}
 			if decision.Decision {
+				logger.Debugf("Got success for role %s.", role)
 				return decision, httpErr
 			}
 		}
@@ -78,26 +79,21 @@ func (isd IShareDecider) Decide(verifiableCredential *model.DSBAVerifiableCreden
 
 func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, role model.Role, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 	for _, roleName := range role.Names {
+		logger.Debugf("Request decision for role %s and issuer %s.", role, roleIssuer)
 		decision, httpErr = isd.decideForRolename(requestTarget, roleIssuer, roleName, authorizationRegistry, requiredPolicies)
 		if httpErr != (model.HttpError{}) {
+			logger.Debugf("Got error %s for %s", roleName, logging.PrettyPrintObject(httpErr))
+			if httpErr.Status == 404 {
+				logger.Debug("404 error, drop the error.")
+				continue
+			}
 			return decision, httpErr
 		}
 		if decision.Decision {
+			logger.Debugf("Got success for %s", roleName)
 			return decision, httpErr
 		}
 	}
-	return decision, httpErr
-}
-
-func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
-	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
-	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
-	if httpErr != (model.HttpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
-		return decision, httpErr
-	}
-	decision = CheckDelegationEvidence(delegationEvidenceForRole)
-	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
 	return decision, httpErr
 }
 
@@ -133,7 +129,8 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 	}
 
 	if !strings.Contains(requestedUrl.Path, ngsiPathIndicator) {
-		return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("The original address is not an ngsi request %s", originalAddress), RootError: err}
+		logger.Debugf("Received a non ngsi-ld path, will build http policies.")
+		return buildHttpPolicy(requestedUrl.Path, requestType)
 	}
 
 	plainPath := strings.ReplaceAll(requestedUrl.Path, ngsiPathIndicator, "")
@@ -161,6 +158,47 @@ func buildRequiredPolicies(originalAddress string, requestType string, requestBo
 		return buildRequiredPoliciesForSingleAttr(entityId, pathParts[len(pathParts)-1], requestType)
 	}
 	return policies, model.HttpError{Status: http.StatusBadRequest, Message: fmt.Sprintf("The request %s : %s is not supported by the IShareDecider.", requestType, originalAddress), RootError: nil}
+}
+
+// in case of non-ngsi requests, we build http-path requests.
+func buildHttpPolicy(path string, requestType string) (policies []model.Policy, httpErr model.HttpError) {
+	resourcePaths := buildResourcePaths(path)
+	for _, path := range resourcePaths {
+		policies = append(policies, model.Policy{
+			Target: &model.PolicyTarget{
+				Resource: &model.Resource{
+					Type:        "PATH",
+					Identifiers: []string{path},
+				},
+				Actions: []string{requestType}},
+			Rules: []model.Rule{{Effect: "Permit"}}})
+
+	}
+	return policies, httpErr
+}
+
+// create the resource paths. At least one of them needs to exist to be allowed
+func buildResourcePaths(path string) (paths []string) {
+	pathParts := strings.Split(path, "/")
+
+	for i, part := range pathParts {
+		if part == "" {
+			continue
+		}
+
+		starPath := "/"
+		currentPart := "/"
+		for ni, subPart := range pathParts {
+			if subPart != "" && ni < i {
+				starPath = starPath + subPart + "/"
+				currentPart = currentPart + subPart + "/"
+			}
+		}
+		paths = append(paths, starPath+"*")
+		paths = append(paths, currentPart+part)
+
+	}
+	return paths
 }
 
 func buildRequiredPoliciesForEntity(entityId string, requestType string, requestBody *map[string]interface{}) (policies []model.Policy, httpErr model.HttpError) {
@@ -312,13 +350,13 @@ func doesPermitRequest(policySets *[]model.PolicySet) bool {
 		return false
 	}
 	for _, policySet := range *policySets {
-		if !doesSetPermitRequest(&policySet) {
-			logger.Debugf("PolicySet does not permit the request: %s.", logging.PrettyPrintObject(*policySets))
-			return false
+		if doesSetPermitRequest(&policySet) {
+			logger.Debugf("PolicySet does permit the request: %s.", logging.PrettyPrintObject(*policySets))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySets))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*policySets))
+	return false
 }
 
 func doesSetPermitRequest(policySet *model.PolicySet) bool {
@@ -327,13 +365,13 @@ func doesSetPermitRequest(policySet *model.PolicySet) bool {
 		return false
 	}
 	for _, policy := range policySet.Policies {
-		if !doRulesPermitRequest(&policy.Rules) {
-			logger.Debugf("Policy does not permit the request: %s.", logging.PrettyPrintObject(policy))
-			return false
+		if doRulesPermitRequest(&policy.Rules) {
+			logger.Debugf("Policy does permit the request: %s.", logging.PrettyPrintObject(policy))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySet))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*policySet))
+	return false
 }
 
 func doRulesPermitRequest(rules *[]model.Rule) bool {
@@ -343,13 +381,13 @@ func doRulesPermitRequest(rules *[]model.Rule) bool {
 
 	}
 	for _, rule := range *rules {
-		if rule.Effect != model.ISharePermitEffect {
-			logger.Debugf("Request denied, found a non-permit rule: %s", logging.PrettyPrintObject(rule))
-			return false
+		if rule.Effect == model.ISharePermitEffect {
+			logger.Debugf("Request allowed, found a permit rule: %s", logging.PrettyPrintObject(rule))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*rules))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*rules))
+	return false
 
 }
 

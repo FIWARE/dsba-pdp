@@ -134,32 +134,28 @@ func TestDecide(t *testing.T) {
 		{"PUT request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-put", "PUT", nil, "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-put"}, []string{"*"}, "PUT")}},
 		{"PATCH request with AR error should bubble.", getIShareDSBAToken(), "/ngsi-ld/v1/entities/urn:ngsi-ld:entity:to-patch", "PATCH", getEntity(), "myPdp", model.DelegationEvidence{}, getBadGatewayError(), model.Decision{}, getBadGatewayError(), []model.Policy{getPolicy("entity", []string{"urn:ngsi-ld:entity:to-patch"}, []string{"id", "myProp"}, "PATCH")}},
 
-		{"Non-NGSI GET requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
-		{"Non-NGSI POST requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "POST", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
-		{"Non-NGSI PUT requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "PUT", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
-		{"Non-NGSI DELETE requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "DELETE", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
-		{"Non-NGSI PATCH requests are considered a BadRequest.", getDSBAToken(), "/non/ngsi/request", "PATCH", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
-
 		{"NGSI-GET requests without a type are considered a BadRequest.", getDSBAToken(), "/ngsi-ld/v1/entities", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
 		{"NGSI-GET requests on non ngis-entities are considered a BadRequest.", getDSBAToken(), "/ngsi-ld/v1/entities/myEntity", "GET", nil, "myPdp", getActivePermit(), model.HttpError{}, model.Decision{Decision: false}, model.HttpError{Status: 400}, []model.Policy{}},
 	}
 
 	for _, tc := range tests {
-		logger.Infof("TestDecide +++++++++++++++++ Running test: %s", tc.testName)
-		mr := mockRegistry{mockEvidence: tc.mockEvidence, mockError: tc.mockError}
-		decider := NewIShareDecider(&mr, mockConfig{providerId: tc.testProviderId})
-		logger.Debugf("Test path %s", tc.testAddress)
-		decision, httpErr := decider.Decide(tc.testToken.VerifiableCredential, tc.testAddress, tc.testRequestType, tc.testRequestBody)
-		if httpErr.Status != tc.expectedError.Status {
-			t.Errorf("%s: Unexpected error on decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
-		}
-		if decision.Decision != tc.expectedDecision.Decision {
-			t.Errorf("%s: Unexpected decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedDecision), logging.PrettyPrintObject(decision))
-		}
+		t.Run(tc.testName, func(t *testing.T) {
+			logger.Infof("TestDecide +++++++++++++++++ Running test: %s", tc.testName)
+			mr := mockRegistry{mockEvidence: tc.mockEvidence, mockError: tc.mockError}
+			decider := NewIShareDecider(&mr, mockConfig{providerId: tc.testProviderId})
+			logger.Debugf("Test path %s", tc.testAddress)
+			decision, httpErr := decider.Decide(tc.testToken.VerifiableCredential, tc.testAddress, tc.testRequestType, tc.testRequestBody)
+			if httpErr.Status != tc.expectedError.Status {
+				t.Errorf("%s: Unexpected error on decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedError), logging.PrettyPrintObject(httpErr))
+			}
+			if decision.Decision != tc.expectedDecision.Decision {
+				t.Errorf("%s: Unexpected decision. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedDecision), logging.PrettyPrintObject(decision))
+			}
 
-		if !equalPolicies(tc.expectedPolicies, mr.getRequestedPolicies()) {
-			t.Errorf("%s: Unexpected policies requested. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedPolicies), logging.PrettyPrintObject(mr.getRequestedPolicies()))
-		}
+			if !equalPolicies(tc.expectedPolicies, mr.getRequestedPolicies()) {
+				t.Errorf("%s: Unexpected policies requested. Expected: %s, Actual: %s", tc.testName, logging.PrettyPrintObject(tc.expectedPolicies), logging.PrettyPrintObject(mr.getRequestedPolicies()))
+			}
+		})
 	}
 
 }
@@ -346,4 +342,30 @@ func equalPolicies(a, b []model.Policy) bool {
 		}
 	}
 	return true
+}
+
+func TestBuildResourcePaths(t *testing.T) {
+	expectedPaths := []string{
+		"/*", "/a", "/a/*", "/a/b", "/a/b/*", "/a/b/c",
+	}
+	paths := buildResourcePaths("/a/b/c")
+	for _, p := range expectedPaths {
+		if !containsS(paths, p) {
+			t.Errorf("%s is not in the result %v.", p, paths)
+		}
+	}
+	for _, p := range paths {
+		if !containsS(expectedPaths, p) {
+			t.Errorf("%s is not in the excpected %v.", p, expectedPaths)
+		}
+	}
+}
+
+func containsS(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
