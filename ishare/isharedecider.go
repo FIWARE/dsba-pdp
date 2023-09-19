@@ -181,7 +181,6 @@ func buildHttpPolicy(path string, requestType string) (policies []model.Policy, 
 				Resource: &model.Resource{
 					Type:        "PATH",
 					Identifiers: []string{path},
-					Attributes:  []string{},
 				},
 				Actions: []string{requestType}},
 			Rules: []model.Rule{{Effect: "Permit"}}})
@@ -378,13 +377,13 @@ func doesSetPermitRequest(policySet *model.PolicySet) bool {
 		return false
 	}
 	for _, policy := range policySet.Policies {
-		if !doRulesPermitRequest(&policy.Rules) {
-			logger.Debugf("Policy does not permit the request: %s.", logging.PrettyPrintObject(policy))
-			return false
+		if doRulesPermitRequest(&policy.Rules) {
+			logger.Debugf("Policy does permit the request: %s.", logging.PrettyPrintObject(policy))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySet))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*policySet))
+	return false
 }
 
 func doRulesPermitRequest(rules *[]model.Rule) bool {
@@ -394,13 +393,13 @@ func doRulesPermitRequest(rules *[]model.Rule) bool {
 
 	}
 	for _, rule := range *rules {
-		if rule.Effect != model.ISharePermitEffect {
-			logger.Debugf("Request denied, found a non-permit rule: %s", logging.PrettyPrintObject(rule))
-			return false
+		if rule.Effect == model.ISharePermitEffect {
+			logger.Debugf("Request allowed, found a permit rule: %s", logging.PrettyPrintObject(rule))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*rules))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*rules))
+	return false
 
 }
 
