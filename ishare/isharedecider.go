@@ -97,18 +97,6 @@ func (isd IShareDecider) decideForRole(requestTarget string, roleIssuer string, 
 	return decision, httpErr
 }
 
-func (isd IShareDecider) checkIShareTarget(requestTarget string, roleIssuer string, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
-	logger.Debugf("Check target %s with role %s. Policies: %s", requestTarget, roleIssuer, logging.PrettyPrintObject(requiredPolicies))
-	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(requestTarget, roleIssuer, requiredPolicies, isd.iShareAuthorizationRegistry.GetPDPRegistry())
-	if httpErr != (model.HttpError{}) {
-		logger.Debugf("Was not able to get the delegation evidence from the role ar: %v", logging.PrettyPrintObject(isd.iShareAuthorizationRegistry.GetPDPRegistry()))
-		return decision, httpErr
-	}
-	decision = CheckDelegationEvidence(delegationEvidenceForRole)
-	logger.Debugf("Decision for the role is: %s", logging.PrettyPrintObject(decision))
-	return decision, httpErr
-}
-
 func (isd IShareDecider) decideForRolename(requestTarget string, roleIssuer string, roleName string, authorizationRegistry *model.AuthorizationRegistry, requiredPolicies *[]model.Policy) (decision model.Decision, httpErr model.HttpError) {
 
 	delegationEvidenceForRole, httpErr := isd.iShareAuthorizationRegistry.GetDelegationEvidence(roleIssuer, roleName, requiredPolicies, authorizationRegistry)
