@@ -362,13 +362,13 @@ func doesPermitRequest(policySets *[]model.PolicySet) bool {
 		return false
 	}
 	for _, policySet := range *policySets {
-		if !doesSetPermitRequest(&policySet) {
-			logger.Debugf("PolicySet does not permit the request: %s.", logging.PrettyPrintObject(*policySets))
-			return false
+		if doesSetPermitRequest(&policySet) {
+			logger.Debugf("PolicySet does permit the request: %s.", logging.PrettyPrintObject(*policySets))
+			return true
 		}
 	}
-	logger.Debugf("At least one permit was found in %s", logging.PrettyPrintObject(*policySets))
-	return true
+	logger.Debugf("No permit was found in %s", logging.PrettyPrintObject(*policySets))
+	return false
 }
 
 func doesSetPermitRequest(policySet *model.PolicySet) bool {
