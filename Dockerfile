@@ -1,5 +1,7 @@
 FROM golang:1.18-alpine
 
+LABEL org.opencontainers.image.source="https://github.com/FIWARE/dsba-pdp"
+
 ARG VERSION="development-build"
 
 ENV SERVER_PORT="8080"
